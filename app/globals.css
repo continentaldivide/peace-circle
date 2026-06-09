@@ -1,26 +1,139 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* =========================================================================
+   Variant tokens
+   One shared app, themed four ways. Each block sets the raw token values for a
+   variant; the active set is selected by `data-variant` on the app root.
+   Values copied exactly from the design handoff (variant-tokens.json /
+   page-views.css). Font roles point at the next/font CSS variables wired up in
+   app/layout.tsx.
+   ========================================================================= */
+[data-variant="option-a"] {
+  --bg: #f6f2ea;
+  --surface: #fffdf8;
+  --ink: #2c2b25;
+  --ink-soft: #6b685d;
+  --faint: #9c988a;
+  --line: #e7e1d4;
+  --line-strong: #d9d2c1;
+  --accent: #6b7355;
+  --accent-ink: #fbf9f3;
+  --accent-soft: rgba(107, 115, 85, 0.13);
+  --radius: 16px;
+  --btnr: 10px;
+  --chipr: 999px;
+  --stepr: 50%;
+  --cardshadow:
+    0 1px 2px rgba(44, 43, 37, 0.05), 0 8px 26px rgba(44, 43, 37, 0.06);
+  --fdisp: var(--font-newsreader), Georgia, serif;
+  --fbody: var(--font-public-sans), system-ui, sans-serif;
+  --fmono: var(--font-space-mono), monospace;
 }
 
+[data-variant="option-b"] {
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --ink: #2c2b28;
+  --ink-soft: #6a6862;
+  --faint: #9b988e;
+  --line: #e2ded6;
+  --line-strong: #cfcabf;
+  --accent: #2c2b28;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(44, 43, 40, 0.05);
+  --radius: 6px;
+  --btnr: 999px;
+  --chipr: 999px;
+  --stepr: 50%;
+  --cardshadow: none;
+  --fdisp: var(--font-jost), system-ui, sans-serif;
+  --fbody: var(--font-jost), system-ui, sans-serif;
+  --fmono: var(--font-jost), system-ui, sans-serif;
+}
+
+[data-variant="option-c"] {
+  --bg: #f1e9d8;
+  --surface: #f8f2e4;
+  --ink: #2a2520;
+  --ink-soft: #6a5f4e;
+  --faint: #998a70;
+  --line: #ddd0b6;
+  --line-strong: #cabd9e;
+  --accent: #7c3a30;
+  --accent-ink: #f6efe0;
+  --accent-soft: rgba(124, 58, 48, 0.1);
+  --radius: 2px;
+  --btnr: 2px;
+  --chipr: 2px;
+  --stepr: 2px;
+  --cardshadow: none;
+  --fdisp: var(--font-spectral), Georgia, serif;
+  --fbody: var(--font-spectral), Georgia, serif;
+  --fmono: var(--font-space-mono), monospace;
+}
+
+[data-variant="option-d"] {
+  --bg: #ece7dd;
+  --surface: #ffffff;
+  --ink: #15130f;
+  --ink-soft: #4a463f;
+  --faint: #8a8478;
+  --line: #d4cdbf;
+  --line-strong: #bcb5a6;
+  --accent: #1f4a45;
+  --accent-ink: #f3efe6;
+  --accent-soft: rgba(31, 74, 69, 0.1);
+  --radius: 0px;
+  --btnr: 0px;
+  --chipr: 0px;
+  --stepr: 0px;
+  --cardshadow: none;
+  --fdisp: var(--font-archivo), system-ui, sans-serif;
+  --fbody: var(--font-archivo), system-ui, sans-serif;
+  --fmono: var(--font-space-mono), monospace;
+}
+
+/* =========================================================================
+   Expose tokens to Tailwind utilities (inline = utilities emit `var(--token)`
+   directly, so they resolve per-variant through the cascade).
+   ========================================================================= */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+
+  --font-display: var(--fdisp);
+  --font-body: var(--fbody);
+  --font-mono: var(--fmono);
+
+  --radius-card: var(--radius);
+  --radius-btn: var(--btnr);
+  --radius-chip: var(--chipr);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* =========================================================================
+   Per-variant treatment variants (ancestor-scoped, specificity 0).
+   Lets treatment-only overrides read as `option-d:uppercase option-c:italic …`.
+   ========================================================================= */
+@custom-variant option-a (&:where([data-variant="option-a"] *));
+@custom-variant option-b (&:where([data-variant="option-b"] *));
+@custom-variant option-c (&:where([data-variant="option-c"] *));
+@custom-variant option-d (&:where([data-variant="option-d"] *));
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Striped image placeholder used by picture resources (build-notes.md). */
+@utility placeholder-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.045),
+    rgba(0, 0, 0, 0.045) 9px,
+    rgba(0, 0, 0, 0.015) 9px,
+    rgba(0, 0, 0, 0.015) 18px
+  );
 }

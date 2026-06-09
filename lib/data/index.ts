@@ -1,52 +1,55 @@
 import {
-  MOCK_COMMENTS,
-  MOCK_EVENTS,
-  MOCK_POSTS,
-  MOCK_PROFILES,
+  MOCK_MEMBERS,
+  MOCK_NEXT_MEETING,
+  MOCK_RESOURCES,
+  MOCK_UPCOMING_MEETINGS,
 } from "@/lib/data/mock";
-import type { Comment, EventItem, Post, Profile } from "@/lib/data/types";
+import type { Meeting, Member, NextMeeting, Resource } from "@/lib/data/types";
 
 export type {
+  BookResource,
   Comment,
-  EventItem,
-  MemberStatus,
-  Post,
-  PostType,
-  Profile,
+  EventResource,
+  LinkResource,
+  Meeting,
+  Member,
+  NextMeeting,
+  PictureResource,
+  QuoteResource,
+  Resource,
+  ResourceKind,
 } from "@/lib/data/types";
 
 /**
  * The single data-access seam. Every page reads through these functions and
  * never touches the data source directly. In the prototype they return mock
- * arrays; in Phase 2 only their bodies change to call Supabase — the calling
+ * data; in Phase 2 only their bodies change to call Supabase — the calling
  * components stay identical. Signatures are async to match that future.
+ *
+ * Note: prototype *mutations* (new resources/comments) live in client state
+ * seeded from these reads; Phase 2 replaces those with server writes.
  */
 
-export async function getPosts(): Promise<Post[]> {
-  return [...MOCK_POSTS].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export async function getResources(): Promise<Resource[]> {
+  return MOCK_RESOURCES;
 }
 
-export async function getPost(id: string): Promise<Post | null> {
-  return MOCK_POSTS.find((p) => p.id === id) ?? null;
+export async function getResource(id: string): Promise<Resource | null> {
+  return MOCK_RESOURCES.find((r) => r.id === id) ?? null;
 }
 
-export async function getComments(postId: string): Promise<Comment[]> {
-  return MOCK_COMMENTS.filter((c) => c.postId === postId).sort((a, b) =>
-    a.createdAt.localeCompare(b.createdAt),
-  );
+export async function getMembers(): Promise<Member[]> {
+  return MOCK_MEMBERS;
 }
 
-export async function searchPosts(query: string): Promise<Post[]> {
-  const q = query.trim().toLowerCase();
-  const posts = await getPosts();
-  if (!q) return posts;
-  return posts.filter((p) => p.body.toLowerCase().includes(q));
+export async function getMember(id: string): Promise<Member | null> {
+  return MOCK_MEMBERS.find((m) => m.id === id) ?? null;
 }
 
-export async function getEvents(): Promise<EventItem[]> {
-  return [...MOCK_EVENTS].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+export async function getNextMeeting(): Promise<NextMeeting> {
+  return MOCK_NEXT_MEETING;
 }
 
-export async function getProfile(id: string): Promise<Profile | null> {
-  return MOCK_PROFILES.find((p) => p.id === id) ?? null;
+export async function getUpcomingMeetings(): Promise<Meeting[]> {
+  return MOCK_UPCOMING_MEETINGS;
 }
