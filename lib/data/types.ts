@@ -92,3 +92,31 @@ export type Meeting = {
   note: string;
   time: string;
 };
+
+/** A message in The Circle group chat. */
+export type Message = {
+  id: string;
+  /** Member id, or "you" for the signed-in member. */
+  authorId: string;
+  /** Day-divider label in the prototype (e.g. "Yesterday"); a date in Phase 2. */
+  day: string;
+  /** Time-of-day label (e.g. "4:12 PM"); a timestamp in Phase 2. */
+  when: string;
+  body: string;
+};
+
+/**
+ * A scheduled circle gathering with a machine-readable date, so the member
+ * Home can render a real month calendar. Mirrors the Meetings seed; Phase 2
+ * backs both from the same Supabase table.
+ */
+export type CircleEvent = {
+  id: string;
+  title: string;
+  /** Secondary line shown in Upcoming rows and the calendar legend. */
+  note: string;
+  /** ISO date, e.g. "2026-06-21". */
+  date: string;
+  /** Time label, e.g. "4:00 PM". */
+  time: string;
+};

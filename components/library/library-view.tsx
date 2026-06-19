@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Composer } from "@/components/library/composer";
 import { FilterBar } from "@/components/library/filter-bar";
@@ -11,6 +11,7 @@ import { ResourceDetail } from "@/components/library/resource-detail";
 import { MemberNav } from "@/components/member-nav";
 import { RingMark } from "@/components/ring-mark";
 import { useSession } from "@/components/session";
+import { Button } from "@/components/ui/button";
 import { useVariant } from "@/components/variant-context";
 import { variantPath } from "@/lib/variants";
 import type { Member, Resource, ResourceKind } from "@/lib/data";
@@ -28,10 +29,20 @@ export function LibraryView({
   const variant = useVariant();
   const router = useRouter();
 
-  // Approval/auth gate: no stub session → send to join. Phase 2 enforces the
-  // real gate in RLS; this is the prototype's front-end stand-in.
+  // Approval/auth gate: a cold visit with no stub session → send to join.
+  // Phase 2 enforces the real gate in RLS; this is the front-end stand-in.
+  //
+  // Only redirect visitors who were never signed in this mount. An explicit
+  // sign-out (member menu / prototype bar) navigates to the landing page on its
+  // own; redirecting to /join here too would race — and win — over that intent.
+  const sawUser = useRef(false);
+
   useEffect(() => {
-    if (ready && !user) router.replace(variantPath(variant, "/join"));
+    if (user) {
+      sawUser.current = true;
+    } else if (ready && !sawUser.current) {
+      router.replace(variantPath(variant, "/join"));
+    }
   }, [ready, user, router, variant]);
 
   const [resources, setResources] = useState<Resource[]>(initialResources);
@@ -109,7 +120,7 @@ export function LibraryView({
 
   return (
     <>
-      <MemberNav user={user} onCompose={() => setComposing(true)} />
+      <MemberNav user={user} />
       <main className="mx-auto w-full max-w-[1100px] flex-1 px-6 py-10 sm:px-10">
         <h1 className="font-display text-[40px] font-semibold leading-[1.04] tracking-[-0.015em] text-ink option-b:font-light option-d:font-extrabold">
           The Library
@@ -119,8 +130,17 @@ export function LibraryView({
           meetings.
         </p>
 
-        <div className="my-[18px]">
+        <div className="my-[18px] flex flex-wrap items-center justify-between gap-3">
           <FilterBar active={filter} counts={counts} onPick={setFilter} />
+          <Button
+            size="sm"
+            onClick={() => setComposing(true)}
+            className="flex-none"
+          >
+            <span aria-hidden="true">+</span>
+            <span className="hidden sm:inline">Share something</span>
+            <span className="sm:hidden">Share</span>
+          </Button>
         </div>
 
         {shown.length === 0 ? (

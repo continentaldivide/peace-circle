@@ -1,18 +1,29 @@
 import {
+  MOCK_CIRCLE_EVENTS,
   MOCK_MEMBERS,
+  MOCK_MESSAGES,
   MOCK_NEXT_MEETING,
   MOCK_RESOURCES,
   MOCK_UPCOMING_MEETINGS,
 } from "@/lib/data/mock";
-import type { Meeting, Member, NextMeeting, Resource } from "@/lib/data/types";
+import type {
+  CircleEvent,
+  Meeting,
+  Member,
+  Message,
+  NextMeeting,
+  Resource,
+} from "@/lib/data/types";
 
 export type {
   BookResource,
+  CircleEvent,
   Comment,
   EventResource,
   LinkResource,
   Meeting,
   Member,
+  Message,
   NextMeeting,
   PictureResource,
   QuoteResource,
@@ -52,4 +63,12 @@ export async function getNextMeeting(): Promise<NextMeeting> {
 
 export async function getUpcomingMeetings(): Promise<Meeting[]> {
   return MOCK_UPCOMING_MEETINGS;
+}
+
+export async function getMessages(): Promise<Message[]> {
+  return MOCK_MESSAGES;
+}
+
+export async function getCircleEvents(): Promise<CircleEvent[]> {
+  return MOCK_CIRCLE_EVENTS;
 }

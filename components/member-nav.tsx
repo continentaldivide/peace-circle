@@ -2,12 +2,11 @@
 
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Avatar } from "@/components/avatar";
 import { RingMark } from "@/components/ring-mark";
 import { useSession, type SessionUser } from "@/components/session";
-import { Button } from "@/components/ui/button";
 import { useVariant } from "@/components/variant-context";
 import { variantPath } from "@/lib/variants";
 
@@ -17,17 +16,39 @@ const NAV_BORDER =
 const WORDMARK =
   "inline-flex items-center gap-[11px] font-display text-[20px] font-semibold text-ink option-b:text-[15px] option-b:font-medium option-b:uppercase option-b:tracking-[0.3em] option-d:font-extrabold option-d:tracking-[-0.02em]";
 
-/** Member-area header: brand + compose + profile menu. */
-export function MemberNav({
-  user,
-  onCompose,
+const NAV_LINKS =
+  "text-[15px] font-medium text-ink-soft transition-colors hover:text-ink option-b:uppercase option-b:tracking-[0.2em] option-b:text-[13px] option-b:font-normal option-c:italic option-d:font-semibold";
+
+/** Accent underline marking the current page (mirrors the public nav's links). */
+const NAV_ACTIVE =
+  "text-ink font-semibold relative after:absolute after:inset-x-0 after:-bottom-1.5 after:h-0.5 after:bg-accent";
+
+function NavLink({
+  href,
+  active,
+  children,
 }: {
-  user: SessionUser;
-  onCompose: () => void;
+  href: string;
+  active: boolean;
+  children: string;
 }) {
+  return (
+    <Link
+      href={href}
+      className={active ? `${NAV_LINKS} ${NAV_ACTIVE}` : NAV_LINKS}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/** Member-area header: brand + nav links + profile menu. Mirrors SiteNav. */
+export function MemberNav({ user }: { user: SessionUser }) {
   const variant = useVariant();
   const router = useRouter();
+  const pathname = usePathname();
   const { signOut } = useSession();
+  const p = (path = "") => variantPath(variant, path);
 
   function signOutAndLeave() {
     signOut();
@@ -36,21 +57,28 @@ export function MemberNav({
 
   return (
     <header
-      className={`flex items-center justify-between gap-4 px-6 py-[18px] sm:px-14 ${NAV_BORDER}`}
+      className={`flex flex-wrap items-center justify-between gap-x-5 gap-y-3 px-6 py-[22px] sm:px-14 ${NAV_BORDER}`}
     >
-      <Link href={variantPath(variant)} className={WORDMARK}>
+      <Link href={p()} className={WORDMARK}>
         <span className="text-accent">
-          <RingMark size={26} rings={3} />
+          <RingMark size={22} rings={3} />
         </span>
         <span>Peace Circle</span>
       </Link>
 
-      <div className="flex items-center gap-3">
-        <Button size="sm" onClick={onCompose}>
-          <span aria-hidden="true">+</span>
-          <span className="hidden sm:inline">Share something</span>
-          <span className="sm:hidden">Share</span>
-        </Button>
+      <nav className="flex flex-wrap items-center gap-x-[26px] gap-y-2">
+        <NavLink href={p("/home")} active={pathname === p("/home")}>
+          Home
+        </NavLink>
+        <NavLink href={p("/library")} active={pathname === p("/library")}>
+          The Library
+        </NavLink>
+        <NavLink href={p("/meetings")} active={pathname === p("/meetings")}>
+          Meetings
+        </NavLink>
+        <Link href={p("/about")} className={NAV_LINKS}>
+          About
+        </Link>
 
         <Menu as="div" className="relative">
           <MenuButton
@@ -93,7 +121,7 @@ export function MemberNav({
             </MenuItem>
           </MenuItems>
         </Menu>
-      </div>
+      </nav>
     </header>
   );
 }

@@ -1,4 +1,11 @@
-import type { Meeting, Member, NextMeeting, Resource } from "@/lib/data/types";
+import type {
+  CircleEvent,
+  Meeting,
+  Member,
+  Message,
+  NextMeeting,
+  Resource,
+} from "@/lib/data/types";
 
 // Throwaway seed for the prototype, using the handoff's walking-free content
 // model. Phase 2 deletes this file once the accessors in `index.ts` read from
@@ -143,6 +150,85 @@ export const MOCK_NEXT_MEETING: NextMeeting = {
     welcome: "Newcomers always welcome — just come as you are.",
   },
 };
+
+// The Circle group chat, newest last. "you" renders as the signed-in member.
+export const MOCK_MESSAGES: Message[] = [
+  {
+    id: "msg1",
+    authorId: "ruth",
+    day: "Yesterday",
+    when: "4:12 PM",
+    body: "Still thinking about the silence at the end of last circle. Anyone else feel how long it held?",
+  },
+  {
+    id: "msg2",
+    authorId: "david",
+    day: "Yesterday",
+    when: "4:20 PM",
+    body: "Yes. I didn't want to be the one to break it.",
+  },
+  {
+    id: "msg3",
+    authorId: "gail",
+    day: "Today",
+    when: "9:02 AM",
+    body: "Morning, all. I'll bring extra cushions Sunday — we had a few new faces last time.",
+  },
+  {
+    id: "msg4",
+    authorId: "sam",
+    day: "Today",
+    when: "9:14 AM",
+    body: "I can drive two more from the east side if anyone needs a lift.",
+  },
+  {
+    id: "msg5",
+    authorId: "you",
+    day: "Today",
+    when: "9:31 AM",
+    body: "Count me in for cushions duty too. See everyone Sunday.",
+  },
+];
+
+// Dated gatherings for the Home calendar. Kept consistent with the Meetings
+// seed above (June through October circles).
+export const MOCK_CIRCLE_EVENTS: CircleEvent[] = [
+  {
+    id: "ev-jun",
+    title: "June Circle — an hour of stillness",
+    note: "Grace United Church",
+    date: "2026-06-21",
+    time: "4:00 PM",
+  },
+  {
+    id: "ev-jul",
+    title: "July Circle",
+    note: "An ordinary hour of quiet",
+    date: "2026-07-19",
+    time: "4:00 PM",
+  },
+  {
+    id: "ev-aug",
+    title: "August Circle — evening sitting",
+    note: "Cooler hour",
+    date: "2026-08-16",
+    time: "6:30 PM",
+  },
+  {
+    id: "ev-sep",
+    title: "September Circle",
+    note: "Welcome tea for newcomers",
+    date: "2026-09-20",
+    time: "4:00 PM",
+  },
+  {
+    id: "ev-oct",
+    title: "October Circle",
+    note: "Bring a reading to share",
+    date: "2026-10-18",
+    time: "4:00 PM",
+  },
+];
 
 export const MOCK_UPCOMING_MEETINGS: Meeting[] = [
   {

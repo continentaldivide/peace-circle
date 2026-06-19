@@ -41,7 +41,7 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
 
   function openLink() {
     signIn({ name: joining ? name.trim() : undefined, email });
-    router.push(variantPath(variant, "/library"));
+    router.push(variantPath(variant, "/home"));
   }
 
   return (

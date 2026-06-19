@@ -32,30 +32,34 @@ export function ResourceDetail({
 }) {
   const [draft, setDraft] = useState("");
 
+  // Keep showing the last resource while the sheet animates closed: `resource`
+  // goes null the instant `openId` clears, but the panel is still on screen for
+  // the exit transition. Retaining the last value avoids a blank card. Synced
+  // during render (not an effect) so it never lags a frame behind on open.
+  const [shown, setShown] = useState(resource);
+  if (resource && resource !== shown) setShown(resource);
+
   function post(e: React.FormEvent) {
     e.preventDefault();
     const body = draft.trim();
-    if (!body || !resource) return;
-    onAddComment(resource.id, body);
+    if (!body || !shown) return;
+    onAddComment(shown.id, body);
     setDraft("");
   }
 
-  const count = resource?.comments.length ?? 0;
+  const count = shown?.comments.length ?? 0;
 
   return (
     <Sheet open={open} onClose={onClose} label="Resource detail">
       <SheetClose onClose={onClose} />
-      {resource ? (
+      {shown ? (
         <>
           <div className="flex-1 overflow-y-auto px-6 pb-5 pt-7 sm:px-8">
             <div className="pb-5">
-              <KindTag kind={resource.kind} />
-              <ResourceBody r={resource} />
+              <KindTag kind={shown.kind} />
+              <ResourceBody r={shown} />
               <div className="mt-3 border-t border-line pt-[11px]">
-                <CardMeta
-                  author={lookup(resource.authorId)}
-                  when={resource.when}
-                />
+                <CardMeta author={lookup(shown.authorId)} when={shown.when} />
               </div>
             </div>
 
@@ -71,7 +75,7 @@ export function ResourceDetail({
                     Be the first to respond. A short note is plenty.
                   </p>
                 ) : null}
-                {resource.comments.map((c) => {
+                {shown.comments.map((c) => {
                   const a = lookup(c.authorId);
                   return (
                     <div key={c.id} className="flex gap-3">

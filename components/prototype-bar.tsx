@@ -36,7 +36,7 @@ export function PrototypeBar({
 
   function enterAsMember() {
     signIn({ name: "Preview Member", email: "preview@peacecircle.test" });
-    router.push(variantPath(currentVariant, "/library"));
+    router.push(variantPath(currentVariant, "/home"));
   }
 
   function leaveMember() {
