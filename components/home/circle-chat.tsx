@@ -7,9 +7,6 @@ import type { AuthorInfo } from "@/components/library/kinds";
 import type { SessionUser } from "@/components/session";
 import type { Message } from "@/lib/data";
 
-const TTL =
-  "font-display text-[17px] font-semibold text-ink option-b:font-normal";
-
 function nowLabel(): string {
   return new Date()
     .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
@@ -94,14 +91,7 @@ export function CircleChat({
     <div
       className={`flex flex-col self-stretch rounded-card border border-line bg-surface shadow-[var(--cardshadow)] ${className ?? ""}`}
     >
-      <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
-        <Avatar person={{ initials: "PC", tint: "var(--accent)" }} size={30} />
-        <span className={TTL}>The Circle</span>
-        <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[10px] uppercase text-faint">
-          <span className="h-[7px] w-[7px] rounded-full bg-accent" />
-          live
-        </span>
-      </div>
+      <div className="rounded-t-card border-b border-line bg-accent px-5 py-4" />
 
       <div className="flex flex-1 flex-col gap-[15px] p-5">
         {messages.map((m, i) => (
