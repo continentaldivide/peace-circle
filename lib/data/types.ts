@@ -106,6 +106,20 @@ export type Message = {
 };
 
 /**
+ * One batch of chat history. The Circle loads the newest page on mount and
+ * fetches older pages as the member scrolls up. Cursor-based (not offset) so
+ * pages stay stable as new messages arrive at the bottom.
+ */
+export type MessagePage = {
+  /** Chronological (oldest→newest) within this batch. */
+  messages: Message[];
+  /** Are there older messages before this batch? */
+  hasMore: boolean;
+  /** Cursor for the batch *older* than this one; null when at the start. */
+  nextCursor: string | null;
+};
+
+/**
  * A scheduled circle gathering with a machine-readable date, so the member
  * Home can render a real month calendar. Mirrors the Meetings seed; Phase 2
  * backs both from the same Supabase table.

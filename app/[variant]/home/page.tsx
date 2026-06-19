@@ -7,7 +7,7 @@ import {
 } from "@/lib/data";
 
 export default async function HomePage() {
-  const [resources, members, messages, events] = await Promise.all([
+  const [resources, members, messagePage, events] = await Promise.all([
     getResources(),
     getMembers(),
     getMessages(),
@@ -17,7 +17,7 @@ export default async function HomePage() {
     <HomeView
       initialResources={resources}
       members={members}
-      messages={messages}
+      messagePage={messagePage}
       events={events}
     />
   );

@@ -15,8 +15,9 @@ import { MemberNav } from "@/components/member-nav";
 import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import { useVariant } from "@/components/variant-context";
+import { loadOlderMessages } from "@/app/actions/messages";
 import { variantPath } from "@/lib/variants";
-import type { CircleEvent, Member, Message, Resource } from "@/lib/data";
+import type { CircleEvent, Member, MessagePage, Resource } from "@/lib/data";
 
 const NUMBER_WORDS = [
   "No",
@@ -55,12 +56,12 @@ function SectionHeader({
 export function HomeView({
   initialResources,
   members,
-  messages,
+  messagePage,
   events,
 }: {
   initialResources: Resource[];
   members: Member[];
-  messages: Message[];
+  messagePage: MessagePage;
   events: CircleEvent[];
 }) {
   const { user, ready } = useSession();
@@ -239,7 +240,8 @@ export function HomeView({
 
           {/* Center — The Circle (chat). Moves to the top when the grid collapses. */}
           <CircleChat
-            initialMessages={messages}
+            initialPage={messagePage}
+            loadOlder={loadOlderMessages}
             user={user}
             lookup={lookup}
             className="order-first min-[720px]:col-span-2 min-[1080px]:order-none min-[1080px]:col-span-1"
