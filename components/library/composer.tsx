@@ -125,7 +125,7 @@ export function Composer({
     <Sheet open={open} onClose={onClose} label="Share something">
       <SheetClose onClose={onClose} />
       <div className="flex-1 overflow-y-auto px-6 pb-6 pt-7 sm:px-8">
-        <h2 className="font-display text-[22px] font-semibold text-ink option-b:font-normal option-d:font-bold">
+        <h2 className="font-display text-[22px] font-semibold text-ink">
           Share with the circle
         </h2>
         <p className="mt-1 font-body text-[14.5px] text-ink-soft">

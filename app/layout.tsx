@@ -1,26 +1,10 @@
 import type { Metadata } from "next";
-import {
-  Archivo,
-  Jost,
-  Newsreader,
-  Public_Sans,
-  Space_Mono,
-  Spectral,
-} from "next/font/google";
+import { Newsreader, Public_Sans, Space_Mono } from "next/font/google";
 
+import { SessionProvider } from "@/components/session";
 import "./globals.css";
 
-// Font roles per variant are mapped to these CSS variables in globals.css.
-const archivo = Archivo({
-  subsets: ["latin"],
-  weight: ["400", "600", "700", "800", "900"],
-  variable: "--font-archivo",
-});
-const jost = Jost({
-  subsets: ["latin"],
-  weight: ["300", "400", "500"],
-  variable: "--font-jost",
-});
+// Font roles are mapped to these CSS variables in globals.css.
 const newsreader = Newsreader({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
@@ -37,21 +21,12 @@ const spaceMono = Space_Mono({
   weight: ["400", "700"],
   variable: "--font-space-mono",
 });
-const spectral = Spectral({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-spectral",
-});
 
 const fontVariables = [
-  archivo.variable,
-  jost.variable,
   newsreader.variable,
   publicSans.variable,
   spaceMono.variable,
-  spectral.variable,
-].join(" ");
+].join("");
 
 export const metadata: Metadata = {
   title: "Peace Circle",
@@ -66,7 +41,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${fontVariables} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <SessionProvider>
+          <div className="flex flex-1 flex-col bg-bg font-body text-ink">
+            {children}
+          </div>
+        </SessionProvider>
+      </body>
     </html>
   );
 }

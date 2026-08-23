@@ -2,8 +2,7 @@ import { Avatar } from "@/components/avatar";
 import { KIND_LABELS, type AuthorInfo } from "@/components/library/kinds";
 import type { Resource, ResourceKind } from "@/lib/data";
 
-const TITLE =
-  "font-display text-[19px] font-semibold leading-[1.22] text-ink option-b:font-normal option-d:font-bold option-d:tracking-[-0.01em]";
+const TITLE = "font-display text-[19px] font-semibold leading-[1.22] text-ink";
 const TEXT = "font-body text-[14px] leading-[1.5] text-ink-soft";
 
 export function KindTag({ kind }: { kind: ResourceKind }) {

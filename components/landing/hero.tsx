@@ -1,6 +1,5 @@
 import { Eyebrow, Lede, LinkCta } from "@/components/landing/shared";
 import { ButtonLink } from "@/components/ui/button";
-import { variantPath, type VariantKey } from "@/lib/variants";
 
 const PURPOSE = [
   {
@@ -20,8 +19,8 @@ const PURPOSE = [
   },
 ];
 
-/** Option A: left-aligned, serif, with the 3-up purpose strip pinned to the bottom. */
-export function OptionAHero({ variant }: { variant: VariantKey }) {
+/** Left-aligned, serif, with the 3-up purpose strip pinned to the bottom. */
+export function Hero() {
   return (
     <section className="flex flex-1 flex-col px-6 pt-12 sm:px-14 sm:pt-16">
       <Eyebrow>A community inspired by monks who walk for peace</Eyebrow>
@@ -35,10 +34,8 @@ export function OptionAHero({ variant }: { variant: VariantKey }) {
         share what keeps us steady.
       </Lede>
       <div className="mt-8 flex flex-wrap items-center gap-[22px]">
-        <ButtonLink href={variantPath(variant, "/join")}>
-          Join the circle
-        </ButtonLink>
-        <LinkCta href={variantPath(variant, "/meetings")}>What we do →</LinkCta>
+        <ButtonLink href="/join">Join the circle</ButtonLink>
+        <LinkCta href="/meetings">What we do →</LinkCta>
       </div>
 
       <div className="mt-auto grid grid-cols-1 gap-10 border-t border-line py-10 sm:grid-cols-3">

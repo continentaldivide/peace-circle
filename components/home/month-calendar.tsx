@@ -9,8 +9,6 @@ import {
   parseDate,
   startOfToday,
 } from "@/components/home/dates";
-import { useVariant } from "@/components/variant-context";
-import { variantPath } from "@/lib/variants";
 import type { CircleEvent } from "@/lib/data";
 
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
@@ -48,11 +46,9 @@ function buildCells(year: number, month: number): Cell[] {
   return cells;
 }
 
-const MO =
-  "font-display text-[17px] font-semibold text-ink option-b:font-normal";
+const MO = "font-display text-[17px] font-semibold text-ink";
 
 export function MonthCalendar({ events }: { events: CircleEvent[] }) {
-  const variant = useVariant();
   const router = useRouter();
 
   const today = startOfToday();
@@ -115,7 +111,7 @@ export function MonthCalendar({ events }: { events: CircleEvent[] }) {
                 key={i}
                 type="button"
                 aria-label={`${event.title} on ${MONTHS_SHORT[c.date.getMonth()]} ${c.day}`}
-                onClick={() => router.push(variantPath(variant, "/meetings"))}
+                onClick={() => router.push("/meetings")}
                 className={`${base} bg-accent font-bold text-accent-ink`}
               >
                 {c.day}
