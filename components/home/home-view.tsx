@@ -130,7 +130,8 @@ export function HomeView({
     const days = Math.round(
       (next.date.getTime() - startOfToday().getTime()) / 86_400_000,
     );
-    const when = days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+    const when =
+      days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
     const weekday = next.date.toLocaleDateString([], { weekday: "long" });
     return `${shares}, and ${weekday}'s circle is ${when}.`;
   })();
@@ -149,7 +150,12 @@ export function HomeView({
               ...r,
               comments: [
                 ...r.comments,
-                { id: "c" + Date.now(), authorId: "you", when: "just now", body },
+                {
+                  id: "c" + Date.now(),
+                  authorId: "you",
+                  when: "just now",
+                  body,
+                },
               ],
             }
           : r,

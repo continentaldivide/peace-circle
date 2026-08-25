@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Avatar } from "@/components/avatar";
 import type { AuthorInfo } from "@/components/library/kinds";
@@ -29,7 +35,9 @@ function DayDivider({ label }: { label: string }) {
 function Bubble({ message, author }: { message: Message; author: AuthorInfo }) {
   const me = message.authorId === "you";
   return (
-    <div className={`flex items-start gap-[11px] ${me ? "flex-row-reverse" : ""}`}>
+    <div
+      className={`flex items-start gap-[11px] ${me ? "flex-row-reverse" : ""}`}
+    >
       <Avatar person={author} size={34} />
       <div
         className={`flex max-w-[76%] flex-col gap-1 ${me ? "items-end" : ""}`}
@@ -171,7 +179,10 @@ export function CircleChat({
     >
       <div className="border-b border-line bg-accent px-5 py-4" />
 
-      <div ref={scrollRef} className="flex flex-1 flex-col gap-[15px] overflow-y-auto p-5">
+      <div
+        ref={scrollRef}
+        className="flex flex-1 flex-col gap-[15px] overflow-y-auto p-5"
+      >
         <div ref={topSentinel} />
         {hasMore ? (
           <div className="text-center font-mono text-[10px] uppercase text-faint">
