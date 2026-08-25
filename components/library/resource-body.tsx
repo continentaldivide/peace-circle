@@ -27,21 +27,6 @@ export function ResourceBody({ r }: { r: Resource }) {
           {r.note ? <p className={`mt-2.5 ${TEXT}`}>{r.note}</p> : null}
         </blockquote>
       );
-    case "event":
-      return (
-        <div className="mt-2.5">
-          <h3 className={`mb-1.5 ${TITLE}`}>{r.title}</h3>
-          <p className="font-body text-[14px] font-semibold text-accent">
-            {r.eventDate}
-          </p>
-          {r.location ? (
-            <p className="font-body text-[13.5px] text-ink-soft">
-              {r.location}
-            </p>
-          ) : null}
-          {r.body ? <p className={`mt-2 ${TEXT}`}>{r.body}</p> : null}
-        </div>
-      );
     case "picture":
       return (
         <div className="mt-2.5">

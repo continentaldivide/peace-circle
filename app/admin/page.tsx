@@ -5,7 +5,7 @@ export default function AdminPage() {
     <PlaceholderPage
       eyebrow="Phase 4"
       title="Admin"
-      blurb="Gail's approval queue, moderation, and event management land here once the backend exists."
+      blurb="Approval queue, moderation, and event management land here once the backend exists."
     />
   );
 }

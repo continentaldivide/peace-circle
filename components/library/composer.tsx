@@ -11,13 +11,7 @@ import { Sheet, SheetClose } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { Comment, Resource, ResourceKind } from "@/lib/data";
 
-const COMPOSE_KINDS: ResourceKind[] = [
-  "quote",
-  "link",
-  "picture",
-  "book",
-  "event",
-];
+const COMPOSE_KINDS: ResourceKind[] = ["quote", "link", "picture", "book"];
 
 type Fields = Record<string, string>;
 
@@ -51,8 +45,6 @@ export function Composer({
       case "picture":
       case "book":
         return !!t("title");
-      case "event":
-        return !!t("title") && !!t("eventDate");
     }
   })();
 
@@ -101,16 +93,6 @@ export function Composer({
           kind,
           title: t("title"),
           bookAuthor: t("bookAuthor") || "Unknown",
-          body: t("note"),
-        };
-        break;
-      case "event":
-        r = {
-          ...base,
-          kind,
-          title: t("title"),
-          eventDate: t("eventDate"),
-          location: t("location") || undefined,
           body: t("note"),
         };
         break;
@@ -266,44 +248,6 @@ export function Composer({
                   onChange={set("note")}
                   placeholder="A short note"
                   className={inputClass}
-                />
-              </Field>
-            </>
-          ) : null}
-
-          {kind === "event" ? (
-            <>
-              <Field label="What's happening">
-                <input
-                  value={f.title || ""}
-                  onChange={set("title")}
-                  placeholder="e.g. June Circle — an hour of stillness"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="When">
-                <input
-                  value={f.eventDate || ""}
-                  onChange={set("eventDate")}
-                  placeholder="Sunday, June 21 · 4:00 PM"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Where" hint="(optional)">
-                <input
-                  value={f.location || ""}
-                  onChange={set("location")}
-                  placeholder="Grace United Church"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Details" hint="(optional)">
-                <textarea
-                  rows={2}
-                  value={f.note || ""}
-                  onChange={set("note")}
-                  placeholder="Anything else to know"
-                  className={`${inputClass} resize-none`}
                 />
               </Field>
             </>

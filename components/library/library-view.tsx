@@ -74,7 +74,6 @@ export function LibraryView({
       link: 0,
       picture: 0,
       book: 0,
-      event: 0,
     };
     resources.forEach((r) => {
       c[r.kind] += 1;

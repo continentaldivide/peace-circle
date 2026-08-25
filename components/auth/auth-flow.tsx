@@ -92,7 +92,7 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
                     type="text"
                     value={name}
                     autoComplete="name"
-                    placeholder="e.g. Gail Morrow"
+                    placeholder="e.g. Lisa Morrow"
                     className={inputClass}
                     onChange={(e) => setName(e.target.value)}
                   />
