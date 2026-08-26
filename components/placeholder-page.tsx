@@ -21,7 +21,7 @@ export function PlaceholderPage({
         <p className="font-mono text-[12px] uppercase tracking-[0.16em] text-accent">
           {eyebrow}
         </p>
-        <h1 className="font-display text-[40px] font-semibold text-ink option-b:font-light option-d:font-extrabold">
+        <h1 className="font-display text-[40px] font-semibold text-ink">
           {title}
         </h1>
         <p className="max-w-[48ch] font-body text-[16px] leading-[1.5] text-ink-soft">

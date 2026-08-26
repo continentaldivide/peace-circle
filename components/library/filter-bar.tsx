@@ -26,7 +26,7 @@ export function FilterBar({
             aria-selected={on}
             onClick={() => onPick(k.id)}
             className={cn(
-              "rounded-chip border px-[15px] py-2 font-body text-[14px] font-medium transition-colors option-d:font-semibold",
+              "rounded-chip border px-[15px] py-2 font-body text-[14px] font-medium transition-colors",
               on
                 ? "border-accent bg-accent text-accent-ink"
                 : "border-line-strong bg-surface text-ink-soft hover:text-ink",

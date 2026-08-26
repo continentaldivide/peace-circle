@@ -8,8 +8,6 @@ import { RingMark } from "@/components/ring-mark";
 import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
-import { useVariant } from "@/components/variant-context";
-import { variantPath } from "@/lib/variants";
 
 function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -27,7 +25,6 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
   const [touched, setTouched] = useState(false);
 
   const router = useRouter();
-  const variant = useVariant();
   const { signIn } = useSession();
 
   const joining = mode === "join";
@@ -41,15 +38,15 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
 
   function openLink() {
     signIn({ name: joining ? name.trim() : undefined, email });
-    router.push(variantPath(variant, "/home"));
+    router.push("/home");
   }
 
   return (
     <div className="flex min-h-[80vh] flex-col">
       <header className="flex items-center justify-between gap-4 px-6 py-[22px] sm:px-14">
         <Link
-          href={variantPath(variant)}
-          className="inline-flex items-center gap-[11px] font-display text-[20px] font-semibold text-ink option-b:text-[15px] option-b:font-medium option-b:uppercase option-b:tracking-[0.3em] option-d:font-extrabold"
+          href="/"
+          className="inline-flex items-center gap-[11px] font-display text-[20px] font-semibold text-ink"
         >
           <span className="text-accent">
             <RingMark size={26} rings={3} />
@@ -57,7 +54,7 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
           <span>Peace Circle</span>
         </Link>
         <Link
-          href={variantPath(variant)}
+          href="/"
           className="font-body text-[15px] font-medium text-ink-soft transition-colors hover:text-ink"
         >
           Back to home
@@ -72,7 +69,7 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
                 <RingMark size={40} rings={4} />
               </div>
               <div>
-                <h1 className="font-display text-[28px] font-semibold leading-tight text-ink option-b:font-light option-d:font-extrabold">
+                <h1 className="font-display text-[28px] font-semibold leading-tight text-ink">
                   {joining ? "Join the circle" : "Welcome back"}
                 </h1>
                 <p className="mt-2 font-body text-[15px] leading-relaxed text-ink-soft">
@@ -95,7 +92,7 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
                     type="text"
                     value={name}
                     autoComplete="name"
-                    placeholder="e.g. Gail Morrow"
+                    placeholder="e.g. Lisa Morrow"
                     className={inputClass}
                     onChange={(e) => setName(e.target.value)}
                   />
@@ -129,20 +126,14 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
                 {joining ? (
                   <>
                     Already a member?{" "}
-                    <Link
-                      href={variantPath(variant, "/signin")}
-                      className="font-medium text-accent"
-                    >
+                    <Link href="/signin" className="font-medium text-accent">
                       Sign in instead
                     </Link>
                   </>
                 ) : (
                   <>
                     New here?{" "}
-                    <Link
-                      href={variantPath(variant, "/join")}
-                      className="font-medium text-accent"
-                    >
+                    <Link href="/join" className="font-medium text-accent">
                       Join the circle
                     </Link>
                   </>
@@ -155,7 +146,7 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
                 <RingMark size={40} rings={4} />
               </div>
               <div>
-                <h1 className="font-display text-[28px] font-semibold leading-tight text-ink option-b:font-light option-d:font-extrabold">
+                <h1 className="font-display text-[28px] font-semibold leading-tight text-ink">
                   Check your email
                 </h1>
                 <p className="mt-2 font-body text-[15px] leading-relaxed text-ink-soft">

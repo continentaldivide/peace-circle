@@ -1,7 +1,7 @@
 import type { Meeting, NextMeeting } from "@/lib/data";
 
 const TITLE =
-  "font-display text-[40px] font-semibold leading-[1.04] tracking-[-0.015em] text-ink option-b:font-light option-d:font-extrabold";
+  "font-display text-[40px] font-semibold leading-[1.04] tracking-[-0.015em] text-ink";
 
 export function Meetings({
   next,
@@ -23,7 +23,7 @@ export function Meetings({
           <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-accent">
             {next.tag}
           </p>
-          <p className="mt-2.5 font-display text-[30px] font-semibold leading-[1.06] text-ink option-b:font-normal option-d:font-bold">
+          <p className="mt-2.5 font-display text-[30px] font-semibold leading-[1.06] text-ink">
             {next.date}
           </p>
           <p className="mb-4 font-body text-[15px] text-ink-soft">
@@ -47,7 +47,7 @@ export function Meetings({
           <h4 className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-accent">
             Good to know
           </h4>
-          <p className="font-display text-[20px] leading-[1.2] text-ink option-b:font-normal">
+          <p className="font-display text-[20px] leading-[1.2] text-ink">
             {next.goodToKnow.address}
           </p>
           <p className="font-body text-[14.5px] leading-[1.5] text-ink-soft">
@@ -60,7 +60,7 @@ export function Meetings({
       </div>
 
       <section className="mt-10">
-        <h2 className="mb-2 font-display text-[22px] font-semibold text-ink option-b:font-normal option-d:font-bold">
+        <h2 className="mb-2 font-display text-[22px] font-semibold text-ink">
           Upcoming circles
         </h2>
         <div>
@@ -78,7 +78,7 @@ export function Meetings({
                 </p>
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-display text-[17px] font-semibold text-ink option-b:font-normal option-d:font-bold">
+                <h3 className="font-display text-[17px] font-semibold text-ink">
                   {m.title}
                 </h3>
                 <p className="font-body text-[13.5px] text-faint">{m.note}</p>

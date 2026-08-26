@@ -54,20 +54,8 @@ export type BookResource = ResourceBase & {
   body?: string;
 };
 
-export type EventResource = ResourceBase & {
-  kind: "event";
-  title: string;
-  eventDate: string;
-  location?: string;
-  body?: string;
-};
-
 export type Resource =
-  | QuoteResource
-  | LinkResource
-  | PictureResource
-  | BookResource
-  | EventResource;
+  QuoteResource | LinkResource | PictureResource | BookResource;
 
 export type ResourceKind = Resource["kind"];
 

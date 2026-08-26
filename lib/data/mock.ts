@@ -13,8 +13,8 @@ import type {
 
 export const MOCK_MEMBERS: Member[] = [
   {
-    id: "gail",
-    name: "Gail Morrow",
+    id: "lisa",
+    name: "Lisa Morrow",
     role: "Circle keeper",
     initials: "GM",
     tint: "#6b7355",
@@ -53,7 +53,7 @@ export const MOCK_RESOURCES: Resource[] = [
   {
     id: "r1",
     kind: "quote",
-    authorId: "gail",
+    authorId: "lisa",
     when: "2 days ago",
     quote: "Nothing can bring you peace but yourself.",
     attribution: "— Ralph Waldo Emerson",
@@ -63,31 +63,13 @@ export const MOCK_RESOURCES: Resource[] = [
         id: "c1",
         authorId: "ruth",
         when: "2 days ago",
-        body: "I keep coming back to this one. Thank you for sharing, Gail.",
+        body: "I keep coming back to this one. Thank you for sharing, Lisa.",
       },
       {
         id: "c2",
         authorId: "david",
         when: "1 day ago",
         body: "Going to write it on a card for my desk.",
-      },
-    ],
-  },
-  {
-    id: "r2",
-    kind: "event",
-    authorId: "gail",
-    when: "4 days ago",
-    title: "June Circle — an hour of stillness",
-    eventDate: "Sunday, June 21 · 4:00–5:30 PM",
-    location: "Fellowship Hall, Grace United Church. Newcomers welcome.",
-    body: "Doors open at 3:45. Come in, find a seat, and settle. We'll begin with twenty minutes of shared silence.",
-    comments: [
-      {
-        id: "c3",
-        authorId: "marta",
-        when: "3 days ago",
-        body: "I can bring tea and cups for afterward.",
       },
     ],
   },
@@ -156,7 +138,7 @@ export const MOCK_NEXT_MEETING: NextMeeting = {
 export const MOCK_MESSAGES: Message[] = [
   {
     id: "msg1",
-    authorId: "gail",
+    authorId: "lisa",
     day: "Last week",
     when: "8:40 AM",
     body: "Good morning, friends. The hall is booked for the June circle — Sunday the 21st, four o'clock.",
@@ -184,7 +166,7 @@ export const MOCK_MESSAGES: Message[] = [
   },
   {
     id: "msg5",
-    authorId: "gail",
+    authorId: "lisa",
     day: "Last week",
     when: "10:09 AM",
     body: "Garden door, as usual. I'll prop it at 3:45 so no one's left knocking.",
@@ -212,7 +194,7 @@ export const MOCK_MESSAGES: Message[] = [
   },
   {
     id: "msg9",
-    authorId: "gail",
+    authorId: "lisa",
     day: "Last week",
     when: "2:40 PM",
     body: "Twenty feels right. Long enough to settle, not so long it frightens anyone off.",
@@ -268,7 +250,7 @@ export const MOCK_MESSAGES: Message[] = [
   },
   {
     id: "msg17",
-    authorId: "gail",
+    authorId: "lisa",
     day: "Monday",
     when: "1:05 PM",
     body: "Lovely. I'll leave space for both in the order.",
@@ -303,7 +285,7 @@ export const MOCK_MESSAGES: Message[] = [
   },
   {
     id: "msg22",
-    authorId: "gail",
+    authorId: "lisa",
     day: "Tuesday",
     when: "8:11 AM",
     body: "Two newcomers emailed me overnight asking about Sunday. Word is spreading gently.",
@@ -317,7 +299,7 @@ export const MOCK_MESSAGES: Message[] = [
   },
   {
     id: "msg24",
-    authorId: "gail",
+    authorId: "lisa",
     day: "Tuesday",
     when: "8:45 AM",
     body: "Good idea — easy to slip in and out if they feel unsure.",
@@ -387,7 +369,7 @@ export const MOCK_MESSAGES: Message[] = [
   },
   {
     id: "msg34",
-    authorId: "gail",
+    authorId: "lisa",
     day: "Yesterday",
     when: "6:20 PM",
     body: "That's the circle doing what it's meant to. It follows you out the door.",
@@ -401,7 +383,7 @@ export const MOCK_MESSAGES: Message[] = [
   },
   {
     id: "msg36",
-    authorId: "gail",
+    authorId: "lisa",
     day: "Today",
     when: "9:02 AM",
     body: "Morning, all. I'll bring extra cushions Sunday — we had a few new faces last time.",

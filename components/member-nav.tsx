@@ -7,17 +7,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { RingMark } from "@/components/ring-mark";
 import { useSession, type SessionUser } from "@/components/session";
-import { useVariant } from "@/components/variant-context";
-import { variantPath } from "@/lib/variants";
 
-const NAV_BORDER =
-  "option-a:border-b option-a:border-line option-c:border-b-[3px] option-c:border-double option-c:border-accent option-d:border-b-2 option-d:border-ink";
+const NAV_BORDER = "border-b border-line";
 
 const WORDMARK =
-  "inline-flex items-center gap-[11px] font-display text-[20px] font-semibold text-ink option-b:text-[15px] option-b:font-medium option-b:uppercase option-b:tracking-[0.3em] option-d:font-extrabold option-d:tracking-[-0.02em]";
+  "inline-flex items-center gap-[11px] font-display text-[20px] font-semibold text-ink";
 
 const NAV_LINKS =
-  "text-[15px] font-medium text-ink-soft transition-colors hover:text-ink option-b:uppercase option-b:tracking-[0.2em] option-b:text-[13px] option-b:font-normal option-c:italic option-d:font-semibold";
+  "text-[15px] font-medium text-ink-soft transition-colors hover:text-ink";
 
 /** Accent underline marking the current page (mirrors the public nav's links). */
 const NAV_ACTIVE =
@@ -44,22 +41,20 @@ function NavLink({
 
 /** Member-area header: brand + nav links + profile menu. Mirrors SiteNav. */
 export function MemberNav({ user }: { user: SessionUser }) {
-  const variant = useVariant();
   const router = useRouter();
   const pathname = usePathname();
   const { signOut } = useSession();
-  const p = (path = "") => variantPath(variant, path);
 
   function signOutAndLeave() {
     signOut();
-    router.push(variantPath(variant));
+    router.push("/");
   }
 
   return (
     <header
       className={`flex flex-wrap items-center justify-between gap-x-5 gap-y-3 px-6 py-[22px] sm:px-14 ${NAV_BORDER}`}
     >
-      <Link href={p()} className={WORDMARK}>
+      <Link href="/" className={WORDMARK}>
         <span className="text-accent">
           <RingMark size={22} rings={3} />
         </span>
@@ -67,16 +62,16 @@ export function MemberNav({ user }: { user: SessionUser }) {
       </Link>
 
       <nav className="flex flex-wrap items-center gap-x-[26px] gap-y-2">
-        <NavLink href={p("/home")} active={pathname === p("/home")}>
+        <NavLink href="/home" active={pathname === "/home"}>
           Home
         </NavLink>
-        <NavLink href={p("/library")} active={pathname === p("/library")}>
+        <NavLink href="/library" active={pathname === "/library"}>
           The Library
         </NavLink>
-        <NavLink href={p("/meetings")} active={pathname === p("/meetings")}>
+        <NavLink href="/meetings" active={pathname === "/meetings"}>
           Meetings
         </NavLink>
-        <Link href={p("/about")} className={NAV_LINKS}>
+        <Link href="/about" className={NAV_LINKS}>
           About
         </Link>
 

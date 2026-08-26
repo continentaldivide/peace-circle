@@ -2,8 +2,7 @@ import { Avatar } from "@/components/avatar";
 import { KIND_LABELS, type AuthorInfo } from "@/components/library/kinds";
 import type { Resource, ResourceKind } from "@/lib/data";
 
-const TITLE =
-  "font-display text-[19px] font-semibold leading-[1.22] text-ink option-b:font-normal option-d:font-bold option-d:tracking-[-0.01em]";
+const TITLE = "font-display text-[19px] font-semibold leading-[1.22] text-ink";
 const TEXT = "font-body text-[14px] leading-[1.5] text-ink-soft";
 
 export function KindTag({ kind }: { kind: ResourceKind }) {
@@ -27,21 +26,6 @@ export function ResourceBody({ r }: { r: Resource }) {
           </cite>
           {r.note ? <p className={`mt-2.5 ${TEXT}`}>{r.note}</p> : null}
         </blockquote>
-      );
-    case "event":
-      return (
-        <div className="mt-2.5">
-          <h3 className={`mb-1.5 ${TITLE}`}>{r.title}</h3>
-          <p className="font-body text-[14px] font-semibold text-accent">
-            {r.eventDate}
-          </p>
-          {r.location ? (
-            <p className="font-body text-[13.5px] text-ink-soft">
-              {r.location}
-            </p>
-          ) : null}
-          {r.body ? <p className={`mt-2 ${TEXT}`}>{r.body}</p> : null}
-        </div>
       );
     case "picture":
       return (

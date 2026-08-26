@@ -14,9 +14,7 @@ import { ResourceDetail } from "@/components/library/resource-detail";
 import { MemberNav } from "@/components/member-nav";
 import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
-import { useVariant } from "@/components/variant-context";
 import { loadOlderMessages } from "@/app/actions/messages";
-import { variantPath } from "@/lib/variants";
 import type { CircleEvent, Member, MessagePage, Resource } from "@/lib/data";
 
 const NUMBER_WORDS = [
@@ -32,8 +30,7 @@ const NUMBER_WORDS = [
   "Nine",
 ];
 
-const SECTION_TITLE =
-  "font-display text-[18px] font-semibold text-ink option-b:font-normal option-d:font-bold option-d:tracking-[-0.01em]";
+const SECTION_TITLE = "font-display text-[18px] font-semibold text-ink";
 
 /** How many of the newest shares the "Just shared" rail surfaces. */
 const RECENT_COUNT = 3;
@@ -65,9 +62,7 @@ export function HomeView({
   events: CircleEvent[];
 }) {
   const { user, ready } = useSession();
-  const variant = useVariant();
   const router = useRouter();
-  const p = (path = "") => variantPath(variant, path);
 
   // Same approval/auth gate as the Library: a cold visit with no stub session
   // is sent to /join. Phase 2 enforces this in RLS.
@@ -76,9 +71,9 @@ export function HomeView({
     if (user) {
       sawUser.current = true;
     } else if (ready && !sawUser.current) {
-      router.replace(variantPath(variant, "/join"));
+      router.replace("/join");
     }
-  }, [ready, user, router, variant]);
+  }, [ready, user, router]);
 
   const [resources, setResources] = useState<Resource[]>(initialResources);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -135,7 +130,8 @@ export function HomeView({
     const days = Math.round(
       (next.date.getTime() - startOfToday().getTime()) / 86_400_000,
     );
-    const when = days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+    const when =
+      days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
     const weekday = next.date.toLocaleDateString([], { weekday: "long" });
     return `${shares}, and ${weekday}'s circle is ${when}.`;
   })();
@@ -154,7 +150,12 @@ export function HomeView({
               ...r,
               comments: [
                 ...r.comments,
-                { id: "c" + Date.now(), authorId: "you", when: "just now", body },
+                {
+                  id: "c" + Date.now(),
+                  authorId: "you",
+                  when: "just now",
+                  body,
+                },
               ],
             }
           : r,
@@ -168,7 +169,7 @@ export function HomeView({
       <main className="mx-auto w-full max-w-[1180px] flex-1 px-6 pb-12 pt-7 sm:px-10">
         <div className="mb-6 flex items-end justify-between gap-5">
           <div>
-            <h1 className="font-display text-[30px] font-semibold tracking-[-0.01em] text-ink option-b:font-light option-d:font-extrabold option-d:tracking-[-0.02em]">
+            <h1 className="font-display text-[30px] font-semibold tracking-[-0.01em] text-ink">
               {greeting}, {firstName}.
             </h1>
             <p className="mt-1.5 font-body text-[15px] text-ink-soft">
@@ -198,7 +199,7 @@ export function HomeView({
                 title="Upcoming"
                 more={
                   <Link
-                    href={p("/meetings")}
+                    href="/meetings"
                     className="font-body text-[13px] font-medium text-ink-soft transition-colors hover:text-ink"
                   >
                     All →
@@ -210,19 +211,19 @@ export function HomeView({
                   <button
                     key={event.id}
                     type="button"
-                    onClick={() => router.push(p("/meetings"))}
+                    onClick={() => router.push("/meetings")}
                     className="flex w-full items-center gap-4 border-t border-line py-3 text-left first:border-t-0"
                   >
                     <div className="w-12 flex-none text-center">
                       <div className="font-mono text-[10px] font-bold uppercase text-accent">
                         {MONTHS_SHORT[date.getMonth()]}
                       </div>
-                      <div className="font-display text-[23px] font-semibold leading-none text-ink option-b:font-normal">
+                      <div className="font-display text-[23px] font-semibold leading-none text-ink">
                         {date.getDate()}
                       </div>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-display text-[15.5px] font-semibold text-ink option-b:font-normal option-d:font-bold">
+                      <h3 className="font-display text-[15.5px] font-semibold text-ink">
                         {event.title}
                       </h3>
                       <p className="mt-px font-body text-[12.5px] text-faint">
@@ -253,7 +254,7 @@ export function HomeView({
               title="Just shared"
               more={
                 <Link
-                  href={p("/library")}
+                  href="/library"
                   className="font-body text-[13px] font-medium text-ink-soft transition-colors hover:text-ink"
                 >
                   The Library →

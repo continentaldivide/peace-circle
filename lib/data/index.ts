@@ -19,7 +19,6 @@ export type {
   BookResource,
   CircleEvent,
   Comment,
-  EventResource,
   LinkResource,
   Meeting,
   Member,

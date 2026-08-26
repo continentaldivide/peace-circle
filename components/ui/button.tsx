@@ -2,14 +2,9 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-// Per-variant button treatments: Option B = uppercase letter-spaced pills
-// (weight 400); Option C = italic; Option D = heavier. Option A is the base.
-const TREATMENTS =
-  "option-b:font-normal option-b:uppercase option-b:tracking-[0.18em] option-c:italic option-c:font-medium option-d:font-bold";
-
 const SIZES = {
-  md: "px-5 py-[11px] text-[15px] option-b:px-[30px] option-b:py-[15px] option-b:text-[13px]",
-  sm: "px-4 py-[9px] text-[14px] option-b:px-6 option-b:py-3 option-b:text-[12px]",
+  md: "px-5 py-[11px] text-[15px]",
+  sm: "px-4 py-[9px] text-[14px]",
 } as const;
 
 function classes({
@@ -24,7 +19,6 @@ function classes({
       ? "border-accent bg-accent text-accent-ink hover:opacity-90"
       : "border-line-strong bg-transparent text-ink hover:bg-accent-soft",
     SIZES[size],
-    TREATMENTS,
     block && "w-full",
     className,
   );

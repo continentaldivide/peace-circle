@@ -12,8 +12,6 @@ import { MemberNav } from "@/components/member-nav";
 import { RingMark } from "@/components/ring-mark";
 import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
-import { useVariant } from "@/components/variant-context";
-import { variantPath } from "@/lib/variants";
 import type { Member, Resource, ResourceKind } from "@/lib/data";
 
 type Filter = ResourceKind | "all";
@@ -26,7 +24,6 @@ export function LibraryView({
   members: Member[];
 }) {
   const { user, ready } = useSession();
-  const variant = useVariant();
   const router = useRouter();
 
   // Approval/auth gate: a cold visit with no stub session → send to join.
@@ -41,9 +38,9 @@ export function LibraryView({
     if (user) {
       sawUser.current = true;
     } else if (ready && !sawUser.current) {
-      router.replace(variantPath(variant, "/join"));
+      router.replace("/join");
     }
-  }, [ready, user, router, variant]);
+  }, [ready, user, router]);
 
   const [resources, setResources] = useState<Resource[]>(initialResources);
   const [filter, setFilter] = useState<Filter>("all");
@@ -77,7 +74,6 @@ export function LibraryView({
       link: 0,
       picture: 0,
       book: 0,
-      event: 0,
     };
     resources.forEach((r) => {
       c[r.kind] += 1;
@@ -122,7 +118,7 @@ export function LibraryView({
     <>
       <MemberNav user={user} />
       <main className="mx-auto w-full max-w-[1100px] flex-1 px-6 py-10 sm:px-10">
-        <h1 className="font-display text-[40px] font-semibold leading-[1.04] tracking-[-0.015em] text-ink option-b:font-light option-d:font-extrabold">
+        <h1 className="font-display text-[40px] font-semibold leading-[1.04] tracking-[-0.015em] text-ink">
           The Library
         </h1>
         <p className="mt-1.5 max-w-[60ch] font-body text-[16px] leading-[1.5] text-ink-soft">

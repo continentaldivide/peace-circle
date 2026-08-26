@@ -5,7 +5,7 @@ export default function PendingPage() {
     <PlaceholderPage
       eyebrow="Almost there"
       title="You're on the list"
-      blurb="Thanks for joining. Gail reviews new members before the library opens up — you'll get an email the moment you're approved."
+      blurb="Thanks for joining. We review new members before the library opens up — you'll get an email the moment you're approved."
     />
   );
 }
