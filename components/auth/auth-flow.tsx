@@ -199,7 +199,7 @@ export function AuthFlow({
                 <button
                   type="button"
                   onClick={() => setStep("request")}
-                  className="font-medium text-accent"
+                  className="cursor-pointer font-medium text-accent"
                 >
                   Try a different email
                 </button>

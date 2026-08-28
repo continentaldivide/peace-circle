@@ -28,7 +28,7 @@ export function Sheet({
         <DialogPanel
           aria-label={label}
           transition
-          className="flex max-h-[92vh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-card border border-line bg-surface shadow-2xl transition duration-200 ease-out data-closed:translate-y-3 data-closed:opacity-0 sm:rounded-card motion-reduce:transition-none"
+          className="relative flex max-h-[92vh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-card border border-line bg-surface shadow-2xl transition duration-200 ease-out data-closed:translate-y-3 data-closed:opacity-0 sm:rounded-card motion-reduce:transition-none"
         >
           {children}
         </DialogPanel>
@@ -37,14 +37,21 @@ export function Sheet({
   );
 }
 
-/** Close button for the top-right of a Sheet. */
+/**
+ * Close button for the top-right of a Sheet.
+ *
+ * Relies on the DialogPanel being `relative`. Without that, this anchors to the
+ * fixed full-viewport wrapper instead and lands in the corner of the screen —
+ * and only looks correct mid-transition, because `data-closed:translate-y-3`
+ * makes the panel a containing block while the transform is applied.
+ */
 export function SheetClose({ onClose }: { onClose: () => void }) {
   return (
     <button
       type="button"
       onClick={onClose}
       aria-label="Close"
-      className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full text-[20px] leading-none text-ink-soft transition-colors hover:bg-accent-soft hover:text-ink"
+      className="absolute right-3 top-3 z-10 grid h-8 w-8 cursor-pointer place-items-center rounded-full text-[20px] leading-none text-ink-soft transition-colors hover:text-ink"
     >
       ×
     </button>
