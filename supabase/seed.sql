@@ -22,19 +22,61 @@ values ('andrew@andrewsmith.org', 'Circle keeper');
 -- ---------------------------------------------------------------------------
 -- Auth users. Magic-link only, so no usable password is set; the rows just
 -- need to exist and be confirmed.
+--
+-- Two details here are load-bearing, and getting either wrong makes these rows
+-- look fine in psql while every sign-in fails:
+--
+--   1. The token columns must be '' rather than NULL. Auth reads them into
+--      non-nullable strings, so a NULL makes *any* lookup of that user fail
+--      with a 500 — "converting NULL to string is unsupported". They have no
+--      database default, so leaving them out of the column list means NULL.
+--   2. Each user needs a matching auth.identities row. Email sign-in resolves
+--      an address to a user through that table; without one, requesting a
+--      magic link creates a *second* user with a fresh id, which then has no
+--      profile and lands on /pending.
 -- ---------------------------------------------------------------------------
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at,
-  raw_app_meta_data, raw_user_meta_data
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, email_change,
+  email_change_token_new, email_change_token_current,
+  phone_change, phone_change_token, reauthentication_token
 )
 values
-  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'lisa@example.com',  '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Lisa Morrow"}'),
-  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'ruth@example.com',  '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Ruth Adeyemi"}'),
-  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'david@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"David Tran"}'),
-  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'marta@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Marta Ibáñez"}'),
-  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'sam@example.com',   '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Sam Okafor"}');
+  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'lisa@example.com',  '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Lisa Morrow"}',  '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'ruth@example.com',  '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Ruth Adeyemi"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'david@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"David Tran"}',   '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'marta@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Marta Ibáñez"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'sam@example.com',   '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Sam Okafor"}',   '', '', '', '', '', '', '', '');
+
+-- The email identity for each seeded user. `provider_id` is the user id for the
+-- email provider, and `identity_data` must carry `sub` and `email` — that is
+-- what the address lookup reads.
+insert into auth.identities (
+  provider_id, user_id, identity_data, provider,
+  last_sign_in_at, created_at, updated_at
+)
+select
+  u.id::text,
+  u.id,
+  jsonb_build_object(
+    'sub', u.id::text,
+    'email', u.email,
+    'email_verified', true,
+    'phone_verified', false
+  ),
+  'email',
+  now(), now(), now()
+from auth.users u
+where u.id in (
+  '11111111-1111-1111-1111-111111111111',
+  '22222222-2222-2222-2222-222222222222',
+  '33333333-3333-3333-3333-333333333333',
+  '44444444-4444-4444-4444-444444444444',
+  '55555555-5555-5555-5555-555555555555'
+);
 
 -- ---------------------------------------------------------------------------
 -- Profiles for the fictional members. These are written directly rather than
