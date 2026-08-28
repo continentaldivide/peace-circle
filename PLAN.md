@@ -52,8 +52,10 @@ monthly cost is effectively $0 in services plus ~$10–15/year for a domain.
 2. **No automatic backups on the free tier.** Add a scheduled `pg_dump`, also
    free via GitHub Actions.
 3. **Supabase's built-in email sender is rate-limited** (a handful per hour;
-   meant for testing). Wire in Resend **before** testing magic-link login, or
-   the links will silently throttle.
+   meant for testing). Wire in Resend **before the first _hosted_ magic-link
+   test**, or the links will silently throttle. Local development is unaffected:
+   `supabase start` runs a mail catcher (Mailpit, on port 54324) that receives
+   every auth email instantly with no sending domain and no rate limit.
 
 ### The Vercel caveat
 
@@ -154,8 +156,10 @@ destination.
 - Add `@supabase/ssr`; create `lib/supabase/{client,server}.ts` for the browser
   and server (cookie-backed) clients.
 - Add `proxy.ts` at the repo root for session refresh, per the note above.
-- **Wire Resend as the SMTP provider _before_ testing magic links**, or the
-  built-in sender will silently throttle you.
+- **Wire Resend as the SMTP provider _before_ testing magic links against the
+  hosted project**, or the built-in sender will silently throttle you. This is
+  not a prerequisite for the rest of this step: build and round-trip auth
+  locally against Mailpit first, and treat the hosted test as its own milestone.
 - Add `app/auth/callback/route.ts` to exchange the code for a session.
 - Build `lib/dal.ts`: `verifySession()` and `requireApproved()`, both wrapped in
   React `cache()`, with `import "server-only"` at the top. This is the pattern
