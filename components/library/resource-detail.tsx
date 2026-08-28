@@ -9,11 +9,10 @@ import {
   KindTag,
   ResourceBody,
 } from "@/components/library/resource-body";
-import type { SessionUser } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { Sheet, SheetClose } from "@/components/ui/sheet";
-import type { Resource } from "@/lib/data";
+import type { Member, Resource } from "@/lib/data";
 
 export function ResourceDetail({
   open,
@@ -25,7 +24,7 @@ export function ResourceDetail({
 }: {
   open: boolean;
   resource: Resource | null;
-  user: SessionUser;
+  user: Member;
   lookup: (authorId: string) => AuthorInfo;
   onClose: () => void;
   onAddComment: (resourceId: string, body: string) => void;

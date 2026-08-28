@@ -1,44 +1,69 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { RingMark } from "@/components/ring-mark";
-import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
+import { createClient } from "@/lib/supabase/client";
 
 function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 }
 
 /**
- * Simulated passwordless magic-link auth (mirrors the handoff prototype). No
- * backend: the "Open the magic link" button writes a stub session and drops the
- * member into the Library. Phase 2 wires this to real Supabase magic links.
+ * Passwordless magic-link auth.
+ *
+ * Requesting a link proves nothing but ownership of an address, and the link
+ * always creates a user if there is none. That is deliberate: authorization is
+ * a separate layer, so a stranger who signs in here authenticates successfully
+ * and then lands on /pending. Not gating on account existence also avoids
+ * telling an unknown visitor whether an address belongs to a member.
  */
-export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
+export function AuthFlow({
+  mode,
+  initialError,
+}: {
+  mode: "join" | "signin";
+  initialError?: string;
+}) {
   const [step, setStep] = useState<"request" | "sent">("request");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [touched, setTouched] = useState(false);
-
-  const router = useRouter();
-  const { signIn } = useSession();
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(initialError ?? null);
 
   const joining = mode === "join";
   const valid = isEmail(email) && (!joining || name.trim().length > 1);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
-    if (valid) setStep("sent");
-  }
+    if (!valid || sending) return;
 
-  function openLink() {
-    signIn({ name: joining ? name.trim() : undefined, email });
-    router.push("/home");
+    setSending(true);
+    setError(null);
+
+    const supabase = createClient();
+    const { error: sendError } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        // Must be on the project's redirect allow list, or Supabase falls back
+        // to the Site URL and the code never reaches our callback.
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: joining ? { name: name.trim() } : undefined,
+      },
+    });
+
+    setSending(false);
+
+    if (sendError) {
+      setError(sendError.message);
+      return;
+    }
+    setStep("sent");
   }
 
   return (
@@ -118,8 +143,21 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
                 />
               </Field>
 
-              <Button type="submit" block>
-                {joining ? "Send my sign-in link" : "Send sign-in link"}
+              {error ? (
+                <p
+                  role="alert"
+                  className="rounded-[10px] border border-line bg-bg px-4 py-3 font-body text-[14px] leading-relaxed text-accent"
+                >
+                  {error}
+                </p>
+              ) : null}
+
+              <Button type="submit" block disabled={sending}>
+                {sending
+                  ? "Sending…"
+                  : joining
+                    ? "Send my sign-in link"
+                    : "Send sign-in link"}
               </Button>
 
               <p className="text-center font-body text-[14px] text-ink-soft">
@@ -153,29 +191,6 @@ export function AuthFlow({ mode }: { mode: "join" | "signin" }) {
                   We sent a sign-in link to <strong>{email}</strong>. Open it on
                   this device to step into the circle. The link is good for one
                   hour.
-                </p>
-              </div>
-
-              <div className="rounded-[10px] border border-line bg-bg p-4">
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="text-accent">
-                    <RingMark size={22} rings={3} />
-                  </span>
-                  <div>
-                    <p className="font-body text-[13px] font-semibold text-ink">
-                      Peace Circle
-                    </p>
-                    <p className="font-body text-[13px] text-ink-soft">
-                      Your sign-in link
-                    </p>
-                  </div>
-                </div>
-                <Button block onClick={openLink}>
-                  Open the magic link →
-                </Button>
-                <p className="mt-3 font-body text-[12.5px] leading-relaxed text-faint">
-                  (In the real site this button lives in your inbox. Here it
-                  takes you straight in.)
                 </p>
               </div>
 

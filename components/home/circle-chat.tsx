@@ -10,8 +10,7 @@ import {
 
 import { Avatar } from "@/components/avatar";
 import type { AuthorInfo } from "@/components/library/kinds";
-import type { SessionUser } from "@/components/session";
-import type { Message, MessagePage } from "@/lib/data";
+import type { Member, Message, MessagePage } from "@/lib/data";
 
 /** Fixed height of the chat card, so new messages scroll rather than grow it. */
 const CHAT_HEIGHT = "h-[750px]";
@@ -83,7 +82,7 @@ export function CircleChat({
 }: {
   initialPage: MessagePage;
   loadOlder: (cursor: string) => Promise<MessagePage>;
-  user: SessionUser;
+  user: Member;
   lookup: (id: string) => AuthorInfo;
   className?: string;
 }) {

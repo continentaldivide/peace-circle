@@ -2,11 +2,12 @@
 
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { Avatar } from "@/components/avatar";
 import { RingMark } from "@/components/ring-mark";
-import { useSession, type SessionUser } from "@/components/session";
+import { signOutAction } from "@/app/actions/auth";
+import type { Member } from "@/lib/data";
 
 const NAV_BORDER = "border-b border-line";
 
@@ -40,15 +41,8 @@ function NavLink({
 }
 
 /** Member-area header: brand + nav links + profile menu. Mirrors SiteNav. */
-export function MemberNav({ user }: { user: SessionUser }) {
-  const router = useRouter();
+export function MemberNav({ user }: { user: Member }) {
   const pathname = usePathname();
-  const { signOut } = useSession();
-
-  function signOutAndLeave() {
-    signOut();
-    router.push("/");
-  }
 
   return (
     <header
@@ -93,7 +87,9 @@ export function MemberNav({ user }: { user: SessionUser }) {
                 <p className="truncate font-body text-[14px] font-semibold text-ink">
                   {user.name}
                 </p>
-                <p className="font-body text-[12.5px] text-faint">Member</p>
+                <p className="font-body text-[12.5px] text-faint">
+                  {user.role}
+                </p>
               </div>
             </div>
             <MenuItem>
@@ -107,12 +103,14 @@ export function MemberNav({ user }: { user: SessionUser }) {
               </button>
             </MenuItem>
             <MenuItem>
-              <button
-                onClick={signOutAndLeave}
-                className="block w-full rounded-[6px] px-2.5 py-2 text-left font-body text-[14px] text-accent data-focus:bg-accent-soft"
-              >
-                Sign out
-              </button>
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  className="block w-full cursor-pointer rounded-[6px] px-2.5 py-2 text-left font-body text-[14px] text-accent data-focus:bg-accent-soft"
+                >
+                  Sign out
+                </button>
+              </form>
             </MenuItem>
           </MenuItems>
         </Menu>

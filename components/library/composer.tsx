@@ -4,12 +4,11 @@ import { useState } from "react";
 
 import { KIND_LABELS } from "@/components/library/kinds";
 import { RingMark } from "@/components/ring-mark";
-import type { SessionUser } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
 import { Sheet, SheetClose } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import type { Comment, Resource, ResourceKind } from "@/lib/data";
+import type { Comment, Member, Resource, ResourceKind } from "@/lib/data";
 
 const COMPOSE_KINDS: ResourceKind[] = ["quote", "link", "picture", "book"];
 
@@ -22,7 +21,7 @@ export function Composer({
   onCreate,
 }: {
   open: boolean;
-  user: SessionUser;
+  user: Member;
   onClose: () => void;
   onCreate: (r: Resource) => void;
 }) {
