@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
  * `/pending`, exactly as intended.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
 
   // Supabase reports a rejected or expired link as query params rather than an
@@ -21,27 +21,36 @@ export async function GET(request: NextRequest) {
   const authError =
     searchParams.get("error_description") ?? searchParams.get("error");
   if (authError) {
-    return NextResponse.redirect(
-      `${origin}/signin?error=${encodeURIComponent(authError)}`,
-    );
+    return redirect(`/signin?error=${encodeURIComponent(authError)}`);
   }
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/signin?error=missing-code`);
+    return redirect("/signin?error=missing-code");
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return NextResponse.redirect(
-      `${origin}/signin?error=${encodeURIComponent(error.message)}`,
-    );
+    return redirect(`/signin?error=${encodeURIComponent(error.message)}`);
   }
 
-  return NextResponse.redirect(
-    `${origin}${safeNext(searchParams.get("next"))}`,
-  );
+  return redirect(safeNext(searchParams.get("next")));
+}
+
+/**
+ * Redirect with a *relative* Location.
+ *
+ * Deliberately not NextResponse.redirect(), which needs an absolute URL: both
+ * `request.url` and `request.nextUrl` report the dev server's canonical host
+ * rather than the one actually browsed, so a visitor on 127.0.0.1 would be
+ * sent to localhost. Those are separate cookie origins, and the session just
+ * written would not travel to the destination — landing an authenticated
+ * member back on /signin. A relative Location keeps them on whichever host
+ * they came in on.
+ */
+function redirect(path: string) {
+  return new NextResponse(null, { status: 307, headers: { Location: path } });
 }
 
 /**
