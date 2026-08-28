@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -23,15 +24,20 @@ import { createClient } from "@/lib/supabase/server";
  * and then reads data does one round trip per render, not several.
  */
 
-/** A member's own profile row, as the gate reads it. */
-export type Profile = {
-  id: string;
-  name: string;
-  role: string;
-  status: "approved" | "revoked";
-  is_admin: boolean;
-  avatar_tint: string | null;
-};
+/**
+ * A member's own profile row, as the gate reads it.
+ *
+ * Derived from the generated schema types rather than hand-declared, so a
+ * migration that renames or drops one of these columns fails the type-check
+ * here instead of at runtime in the code deciding who gets in. `status` picks
+ * up the `profile_status` enum's values the same way.
+ */
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+
+export type Profile = Pick<
+  ProfileRow,
+  "id" | "name" | "role" | "status" | "is_admin" | "avatar_tint"
+>;
 
 export type Session = {
   userId: string;
@@ -74,11 +80,22 @@ export const requireApproved = cache(
     // Readable even when un-approved: the profiles policy lets you see your own
     // row either way, which is how /pending can tell a signed-in stranger they
     // are not on the roster instead of showing them a bare error.
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from("profiles")
       .select("id, name, role, status, is_admin, avatar_tint")
       .eq("id", session.userId)
-      .maybeSingle<Profile>();
+      .maybeSingle();
+
+    // A failed query is not an answer about membership. Without this, a
+    // transient database error looks identical to "no such profile" and would
+    // tell an approved member they are not on the roster — the one message
+    // this app should never show by accident. Throwing surfaces it as an error
+    // instead (Step 7 adds the boundary that renders it kindly).
+    if (error) {
+      throw new Error(
+        `Could not read profile ${session.userId}: ${error.message}`,
+      );
+    }
 
     // No row means someone authenticated who was never invited and never
     // redeemed a launch code. `revoked` means a former member. Both land on the

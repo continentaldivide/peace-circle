@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "types": "{ echo '// GENERATED FILE — DO NOT EDIT BY HAND. Run `npm run types` to regenerate.'; echo '// Reads the local database, not the migration files — apply migrations first.'; echo; supabase gen types typescript --local; } > lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
