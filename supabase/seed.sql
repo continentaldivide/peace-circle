@@ -10,14 +10,14 @@
 -- and formatting moves out of the data layer and into the components.
 
 -- ---------------------------------------------------------------------------
--- Admin allowlist, inserted first so the bootstrap trigger fires for admins.
+-- Admin allowlist
 -- ---------------------------------------------------------------------------
-
--- Change this to your own address to sign in as an admin locally. The role is
--- the display label the bootstrapped profile gets; it is per-person, so a
--- second admin can be listed here with a different one.
-insert into public.admin_emails (email, role)
-values ('andrew@andrewsmith.org', 'Circle keeper');
+--
+-- Not seeded here. The real addresses live in
+-- supabase/migrations/*_admin_bootstrap.sql so they reach the hosted project
+-- too, and migrations run before this file on `supabase db reset` — so the
+-- allowlist is already populated by the time the fictional members below are
+-- created. Inserting the same address here would collide on the primary key.
 
 -- ---------------------------------------------------------------------------
 -- Auth users. Magic-link only, so no usable password is set.
