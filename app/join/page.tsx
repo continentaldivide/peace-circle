@@ -1,5 +1,11 @@
-import { AuthFlow } from "@/components/auth/auth-flow";
+import { InterestForm } from "@/components/join/interest-form";
+import { SiteNav } from "@/components/site-nav";
 
 export default function JoinPage() {
-  return <AuthFlow mode="join" />;
+  return (
+    <>
+      <SiteNav />
+      <InterestForm />
+    </>
+  );
 }
