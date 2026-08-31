@@ -1,9 +1,6 @@
-"use client";
-
 import Link from "next/link";
 
 import { RingMark } from "@/components/ring-mark";
-import { useSession } from "@/components/session";
 import { ButtonLink } from "@/components/ui/button";
 
 const NAV_BORDER = "border-b border-line";
@@ -16,8 +13,6 @@ const NAV_LINKS =
 
 /** Public top nav shown on landing / meetings / about. */
 export function SiteNav() {
-  const { user } = useSession();
-
   return (
     <header
       className={`flex flex-wrap items-center justify-between gap-x-5 gap-y-3 px-6 py-[22px] sm:px-14 ${NAV_BORDER}`}
@@ -30,7 +25,9 @@ export function SiteNav() {
       </Link>
 
       <nav className="flex flex-wrap items-center gap-x-[26px] gap-y-2">
-        <Link href={user ? "/library" : "/signin"} className={NAV_LINKS}>
+        {/* Always points at the Library; requireApproved() sends anyone
+            who is not a member to /signin or /pending. */}
+        <Link href="/library" className={NAV_LINKS}>
           The Library
         </Link>
         <Link href="/meetings" className={NAV_LINKS}>

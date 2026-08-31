@@ -20,21 +20,72 @@ insert into public.admin_emails (email, role)
 values ('andrew@andrewsmith.org', 'Circle keeper');
 
 -- ---------------------------------------------------------------------------
--- Auth users. Magic-link only, so no usable password is set; the rows just
--- need to exist and be confirmed.
+-- Auth users. Magic-link only, so no usable password is set.
+--
+-- Making one of these by hand takes more than it looks, so the awkward part is
+-- written once and looped over the member list below. It is a single DO block
+-- rather than a helper function because the CLI sends this file in batches: a
+-- function created here is not yet visible to a later statement that calls it.
 -- ---------------------------------------------------------------------------
 
-insert into auth.users (
-  instance_id, id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_app_meta_data, raw_user_meta_data
-)
-values
-  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'lisa@example.com',  '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Lisa Morrow"}'),
-  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'ruth@example.com',  '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Ruth Adeyemi"}'),
-  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'david@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"David Tran"}'),
-  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'marta@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Marta Ibáñez"}'),
-  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'sam@example.com',   '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"name":"Sam Okafor"}');
+do $seed$
+declare
+  m record;
+begin
+  for m in
+    select *
+    from (values
+      ('11111111-1111-1111-1111-111111111111'::uuid, 'lisa@example.com',  'Lisa Morrow'),
+      ('22222222-2222-2222-2222-222222222222'::uuid, 'ruth@example.com',  'Ruth Adeyemi'),
+      ('33333333-3333-3333-3333-333333333333'::uuid, 'david@example.com', 'David Tran'),
+      ('44444444-4444-4444-4444-444444444444'::uuid, 'marta@example.com', 'Marta Ibáñez'),
+      ('55555555-5555-5555-5555-555555555555'::uuid, 'sam@example.com',   'Sam Okafor')
+    ) as t(id, email, name)
+  loop
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      raw_app_meta_data, raw_user_meta_data,
+      -- Auth reads all eight of these into non-nullable strings, and none has
+      -- a database default. Leave any one out and it is NULL, which makes
+      -- *every* lookup of that user fail with a 500 — "converting NULL to
+      -- string is unsupported" — while the row still looks perfectly fine in
+      -- psql. All eight were confirmed necessary by nulling each in turn and
+      -- watching sign-in break.
+      confirmation_token, recovery_token, email_change,
+      email_change_token_new, email_change_token_current,
+      phone_change, phone_change_token, reauthentication_token
+    )
+    values (
+      '00000000-0000-0000-0000-000000000000', m.id,
+      'authenticated', 'authenticated', m.email, '',
+      now(), now(), now(),
+      '{"provider":"email","providers":["email"]}',
+      jsonb_build_object('name', m.name),
+      '', '', '', '', '', '', '', ''
+    );
+
+    -- Email sign-in resolves an address to a user through auth.identities, not
+    -- through auth.users.email. Without a row here, requesting a magic link
+    -- creates a *second* user with a fresh id, which then has no profile and
+    -- lands an approved member on /pending.
+    insert into auth.identities (
+      provider_id, user_id, identity_data, provider,
+      last_sign_in_at, created_at, updated_at
+    )
+    values (
+      m.id::text, m.id,
+      jsonb_build_object(
+        'sub', m.id::text,
+        'email', m.email,
+        'email_verified', true,
+        'phone_verified', false
+      ),
+      'email', now(), now(), now()
+    );
+  end loop;
+end
+$seed$;
 
 -- ---------------------------------------------------------------------------
 -- Profiles for the fictional members. These are written directly rather than

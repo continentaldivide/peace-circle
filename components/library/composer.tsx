@@ -4,12 +4,11 @@ import { useState } from "react";
 
 import { KIND_LABELS } from "@/components/library/kinds";
 import { RingMark } from "@/components/ring-mark";
-import type { SessionUser } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
 import { Sheet, SheetClose } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import type { Comment, Resource, ResourceKind } from "@/lib/data";
+import type { Comment, Member, Resource, ResourceKind } from "@/lib/data";
 
 const COMPOSE_KINDS: ResourceKind[] = ["quote", "link", "picture", "book"];
 
@@ -22,7 +21,7 @@ export function Composer({
   onCreate,
 }: {
   open: boolean;
-  user: SessionUser;
+  user: Member;
   onClose: () => void;
   onCreate: (r: Resource) => void;
 }) {
@@ -121,7 +120,7 @@ export function Composer({
               type="button"
               onClick={() => setKind(k)}
               className={cn(
-                "rounded-chip border px-3.5 py-1.5 font-body text-[13px] font-medium transition-colors",
+                "cursor-pointer rounded-chip border px-3.5 py-1.5 font-body text-[13px] font-medium transition-colors",
                 kind === k
                   ? "border-accent bg-accent text-accent-ink"
                   : "border-line-strong bg-surface text-ink-soft hover:text-ink",
@@ -133,125 +132,132 @@ export function Composer({
         </div>
 
         <form onSubmit={submit} className="mt-5 flex flex-col gap-4">
-          {kind === "quote" ? (
-            <>
-              <Field label="The quote">
-                <textarea
-                  rows={3}
-                  value={f.quote || ""}
-                  onChange={set("quote")}
-                  placeholder="A line worth keeping…"
-                  className={`${inputClass} resize-none`}
-                />
-              </Field>
-              <Field label="Who said it" hint="(optional)">
-                <input
-                  value={f.attribution || ""}
-                  onChange={set("attribution")}
-                  placeholder="— name or source"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Why it stayed with you" hint="(optional)">
-                <input
-                  value={f.note || ""}
-                  onChange={set("note")}
-                  placeholder="A short note"
-                  className={inputClass}
-                />
-              </Field>
-            </>
-          ) : null}
+          {/* The fields swap per kind and each kind is a different height, so
+              the sheet used to grow and shrink under the chips — making them
+              jump away mid-click. Reserving the tallest variant's height keeps
+              the chips still. The tallest is "picture": a ~143px drop zone plus
+              two fields. Re-measure if a kind gains or loses a field. */}
+          <div className="flex min-h-[320px] flex-col gap-4">
+            {kind === "quote" ? (
+              <>
+                <Field label="The quote">
+                  <textarea
+                    rows={3}
+                    value={f.quote || ""}
+                    onChange={set("quote")}
+                    placeholder="A line worth keeping…"
+                    className={`${inputClass} resize-none`}
+                  />
+                </Field>
+                <Field label="Who said it" hint="(optional)">
+                  <input
+                    value={f.attribution || ""}
+                    onChange={set("attribution")}
+                    placeholder="— name or source"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Why it stayed with you" hint="(optional)">
+                  <input
+                    value={f.note || ""}
+                    onChange={set("note")}
+                    placeholder="A short note"
+                    className={inputClass}
+                  />
+                </Field>
+              </>
+            ) : null}
 
-          {kind === "link" ? (
-            <>
-              <Field label="Title">
-                <input
-                  value={f.title || ""}
-                  onChange={set("title")}
-                  placeholder="What is it?"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Web address">
-                <input
-                  value={f.url || ""}
-                  onChange={set("url")}
-                  placeholder="example.com/article"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="A note" hint="(optional)">
-                <input
-                  value={f.note || ""}
-                  onChange={set("note")}
-                  placeholder="Why you're sharing it"
-                  className={inputClass}
-                />
-              </Field>
-            </>
-          ) : null}
+            {kind === "link" ? (
+              <>
+                <Field label="Title">
+                  <input
+                    value={f.title || ""}
+                    onChange={set("title")}
+                    placeholder="What is it?"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Web address">
+                  <input
+                    value={f.url || ""}
+                    onChange={set("url")}
+                    placeholder="example.com/article"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="A note" hint="(optional)">
+                  <input
+                    value={f.note || ""}
+                    onChange={set("note")}
+                    placeholder="Why you're sharing it"
+                    className={inputClass}
+                  />
+                </Field>
+              </>
+            ) : null}
 
-          {kind === "picture" ? (
-            <>
-              <div className="flex flex-col items-center gap-2 rounded-card border border-dashed border-line-strong bg-bg px-4 py-7 text-center">
-                <span className="text-accent">
-                  <RingMark size={30} rings={3} />
-                </span>
-                <p className="font-body text-[14px] text-ink-soft">
-                  Drag a photo here, or tap to choose
-                </p>
-                <span className="font-body text-[12px] text-faint">
-                  (placeholder — real upload comes later)
-                </span>
-              </div>
-              <Field label="Title">
-                <input
-                  value={f.title || ""}
-                  onChange={set("title")}
-                  placeholder="e.g. Candles after the circle"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Caption" hint="(optional)">
-                <input
-                  value={f.note || ""}
-                  onChange={set("note")}
-                  placeholder="A few words about it"
-                  className={inputClass}
-                />
-              </Field>
-            </>
-          ) : null}
+            {kind === "picture" ? (
+              <>
+                <div className="flex flex-col items-center gap-2 rounded-card border border-dashed border-line-strong bg-bg px-4 py-7 text-center">
+                  <span className="text-accent">
+                    <RingMark size={30} rings={3} />
+                  </span>
+                  <p className="font-body text-[14px] text-ink-soft">
+                    Drag a photo here, or tap to choose
+                  </p>
+                  <span className="font-body text-[12px] text-faint">
+                    (placeholder — real upload comes later)
+                  </span>
+                </div>
+                <Field label="Title">
+                  <input
+                    value={f.title || ""}
+                    onChange={set("title")}
+                    placeholder="e.g. Candles after the circle"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Caption" hint="(optional)">
+                  <input
+                    value={f.note || ""}
+                    onChange={set("note")}
+                    placeholder="A few words about it"
+                    className={inputClass}
+                  />
+                </Field>
+              </>
+            ) : null}
 
-          {kind === "book" ? (
-            <>
-              <Field label="Title">
-                <input
-                  value={f.title || ""}
-                  onChange={set("title")}
-                  placeholder="Book title"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Author">
-                <input
-                  value={f.bookAuthor || ""}
-                  onChange={set("bookAuthor")}
-                  placeholder="Who wrote it"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Why you recommend it" hint="(optional)">
-                <input
-                  value={f.note || ""}
-                  onChange={set("note")}
-                  placeholder="A short note"
-                  className={inputClass}
-                />
-              </Field>
-            </>
-          ) : null}
+            {kind === "book" ? (
+              <>
+                <Field label="Title">
+                  <input
+                    value={f.title || ""}
+                    onChange={set("title")}
+                    placeholder="Book title"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Author">
+                  <input
+                    value={f.bookAuthor || ""}
+                    onChange={set("bookAuthor")}
+                    placeholder="Who wrote it"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Why you recommend it" hint="(optional)">
+                  <input
+                    value={f.note || ""}
+                    onChange={set("note")}
+                    placeholder="A short note"
+                    className={inputClass}
+                  />
+                </Field>
+              </>
+            ) : null}
+          </div>
 
           <Button type="submit" block disabled={!canPost}>
             Share with the circle

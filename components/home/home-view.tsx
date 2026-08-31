@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { CircleChat } from "@/components/home/circle-chat";
 import { MONTHS_SHORT, parseDate, startOfToday } from "@/components/home/dates";
@@ -12,7 +11,6 @@ import type { AuthorInfo } from "@/components/library/kinds";
 import { ResourceCard } from "@/components/library/resource-card";
 import { ResourceDetail } from "@/components/library/resource-detail";
 import { MemberNav } from "@/components/member-nav";
-import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import { loadOlderMessages } from "@/app/actions/messages";
 import type { CircleEvent, Member, MessagePage, Resource } from "@/lib/data";
@@ -51,30 +49,18 @@ function SectionHeader({
 }
 
 export function HomeView({
+  user,
   initialResources,
   members,
   messagePage,
   events,
 }: {
+  user: Member;
   initialResources: Resource[];
   members: Member[];
   messagePage: MessagePage;
   events: CircleEvent[];
 }) {
-  const { user, ready } = useSession();
-  const router = useRouter();
-
-  // Same approval/auth gate as the Library: a cold visit with no stub session
-  // is sent to /join. Phase 2 enforces this in RLS.
-  const sawUser = useRef(false);
-  useEffect(() => {
-    if (user) {
-      sawUser.current = true;
-    } else if (ready && !sawUser.current) {
-      router.replace("/join");
-    }
-  }, [ready, user, router]);
-
   const [resources, setResources] = useState<Resource[]>(initialResources);
   const [openId, setOpenId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
@@ -84,13 +70,13 @@ export function HomeView({
     members.forEach((m) =>
       map.set(m.id, { name: m.name, initials: m.initials, tint: m.tint }),
     );
-    if (user) {
-      map.set("you", {
-        name: user.name,
-        initials: user.initials,
-        tint: user.tint,
-      });
-    }
+    // Mock rows still author as the "you" sentinel; Step 4 replaces it with a
+    // real profiles.id.
+    map.set("you", {
+      name: user.name,
+      initials: user.initials,
+      tint: user.tint,
+    });
     return (id: string): AuthorInfo =>
       map.get(id) ?? {
         name: "A member",
@@ -107,8 +93,6 @@ export function HomeView({
     const ahead = dated.filter((e) => e.date >= today);
     return (ahead.length ? ahead : dated).slice(0, 3);
   }, [events]);
-
-  if (!ready || !user) return null;
 
   const recent = resources.slice(0, RECENT_COUNT);
   const openRes = resources.find((r) => r.id === openId) ?? null;
@@ -208,10 +192,9 @@ export function HomeView({
               />
               <div className="rounded-card border border-line bg-surface px-[18px] shadow-[var(--cardshadow)]">
                 {upcoming.map(({ event, date }) => (
-                  <button
+                  <Link
                     key={event.id}
-                    type="button"
-                    onClick={() => router.push("/meetings")}
+                    href="/meetings"
                     className="flex w-full items-center gap-4 border-t border-line py-3 text-left first:border-t-0"
                   >
                     <div className="w-12 flex-none text-center">
@@ -233,7 +216,7 @@ export function HomeView({
                     <span className="whitespace-nowrap font-body text-[12.5px] text-ink-soft">
                       {event.time}
                     </span>
-                  </button>
+                  </Link>
                 ))}
               </div>
             </section>

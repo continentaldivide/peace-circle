@@ -4,9 +4,9 @@ A web app for the Peace Circle community group: a place for approved members to
 share resources (quotes, links, pictures, books), discuss them, and track
 upcoming gatherings.
 
-The UI is built and the database schema is in place. What remains is connecting
-them: real auth, real writes, and the onboarding paths. This document is the
-plan for that work.
+The UI is built, the database schema is in place, and the access gate is real.
+What remains is the onboarding paths, real writes, and moving the data seam off
+mock data. This document is the plan for that work.
 
 ---
 
@@ -52,8 +52,10 @@ monthly cost is effectively $0 in services plus ~$10–15/year for a domain.
 2. **No automatic backups on the free tier.** Add a scheduled `pg_dump`, also
    free via GitHub Actions.
 3. **Supabase's built-in email sender is rate-limited** (a handful per hour;
-   meant for testing). Wire in Resend **before** testing magic-link login, or
-   the links will silently throttle.
+   meant for testing). Wire in Resend **before the first _hosted_ magic-link
+   test**, or the links will silently throttle. Local development is unaffected:
+   `supabase start` runs a mail catcher (Mailpit, on port 54324) that receives
+   every auth email instantly with no sending domain and no rate limit.
 
 ### The Vercel caveat
 
@@ -98,24 +100,38 @@ them go red. Run with `supabase test db`.
 
 ## Status
 
-The app runs entirely on mock data behind a fake session. Everything in the
-member area is real UI over `lib/data/mock.ts`, and the database exists locally
-but nothing is wired to it yet.
+Steps 1 and 2 are done: there is a hosted Supabase project with the schema
+pushed, and the access gate is real. Member pages are server components that
+call `requireApproved()` before rendering, backed by RLS — the localStorage
+stub and its client-side redirects are gone, so view-source no longer reveals
+the circle's contents. A magic-link round trip has been verified end to end
+against the local stack.
+
+What the gate now protects is still mock data. `lib/data/index.ts` returns
+arrays from `lib/data/mock.ts`, so an authenticated member sees fictional
+content: a real door in front of a stage set.
 
 Still stubbed or missing:
 
-- **Auth is a localStorage stub** (`components/session.tsx`). The member-area
-  gate is a client-side `useEffect` → `router.replace("/join")` in
-  `home-view.tsx` and `library-view.tsx`. That's a UI curtain, not a gate —
-  view-source reveals everything.
+- **The data seam is unchanged.** Every read goes through `lib/data/index.ts`
+  and every one of them returns mock data (Step 4).
 - **All mutations are client state.** Composing a share, adding a comment, and
-  sending a chat message update React state and vanish on reload.
+  sending a chat message update React state and vanish on reload (Step 5).
 - **No uploads.** Picture resources carry a `placeholder` string; the composer's
-  drop zone is decorative.
-- **No search.** The Library filters by kind in memory.
-- **No hosted Supabase project, no email.**
-- **Placeholder pages** — `/about`, `/pending`, and `/admin` render
-  `PlaceholderPage`.
+  drop zone is decorative (Step 6).
+- **No search.** The Library filters by kind in memory (Step 6).
+- **`/join` is not yet the interest form.** It still sends a magic link, which
+  means a stranger loops: `/pending` offers "tell us about yourself", `/join`
+  signs them in, and the gate returns them to `/pending`. Step 3 breaks the
+  loop by making `/join` an inquiry with no auth.
+- **No outgoing email.** Nothing sends mail yet, and Supabase Auth still uses
+  its own sender — the dashboard SMTP switch waits on a verified sending
+  domain. Locally this is moot: `supabase start` catches auth mail in Mailpit.
+- **`admin_emails` is empty on the hosted project.** The bootstrap trigger
+  exists but has nothing to match, so no one can become an admin there. The
+  seed covers this locally; the migration in Step 1 is still outstanding.
+- **Placeholder pages** — `/about` and `/admin` render `PlaceholderPage`.
+  `/pending` is now a real screen.
 
 ---
 
@@ -154,8 +170,10 @@ destination.
 - Add `@supabase/ssr`; create `lib/supabase/{client,server}.ts` for the browser
   and server (cookie-backed) clients.
 - Add `proxy.ts` at the repo root for session refresh, per the note above.
-- **Wire Resend as the SMTP provider _before_ testing magic links**, or the
-  built-in sender will silently throttle you.
+- **Wire Resend as the SMTP provider _before_ testing magic links against the
+  hosted project**, or the built-in sender will silently throttle you. This is
+  not a prerequisite for the rest of this step: build and round-trip auth
+  locally against Mailpit first, and treat the hosted test as its own milestone.
 - Add `app/auth/callback/route.ts` to exchange the code for a session.
 - Build `lib/dal.ts`: `verifySession()` and `requireApproved()`, both wrapped in
   React `cache()`, with `import "server-only"` at the top. This is the pattern

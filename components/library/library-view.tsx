@@ -1,7 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Composer } from "@/components/library/composer";
 import { FilterBar } from "@/components/library/filter-bar";
@@ -10,38 +9,20 @@ import { ResourceCard } from "@/components/library/resource-card";
 import { ResourceDetail } from "@/components/library/resource-detail";
 import { MemberNav } from "@/components/member-nav";
 import { RingMark } from "@/components/ring-mark";
-import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import type { Member, Resource, ResourceKind } from "@/lib/data";
 
 type Filter = ResourceKind | "all";
 
 export function LibraryView({
+  user,
   initialResources,
   members,
 }: {
+  user: Member;
   initialResources: Resource[];
   members: Member[];
 }) {
-  const { user, ready } = useSession();
-  const router = useRouter();
-
-  // Approval/auth gate: a cold visit with no stub session → send to join.
-  // Phase 2 enforces the real gate in RLS; this is the front-end stand-in.
-  //
-  // Only redirect visitors who were never signed in this mount. An explicit
-  // sign-out (member menu / prototype bar) navigates to the landing page on its
-  // own; redirecting to /join here too would race — and win — over that intent.
-  const sawUser = useRef(false);
-
-  useEffect(() => {
-    if (user) {
-      sawUser.current = true;
-    } else if (ready && !sawUser.current) {
-      router.replace("/join");
-    }
-  }, [ready, user, router]);
-
   const [resources, setResources] = useState<Resource[]>(initialResources);
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -52,13 +33,13 @@ export function LibraryView({
     members.forEach((m) =>
       map.set(m.id, { name: m.name, initials: m.initials, tint: m.tint }),
     );
-    if (user) {
-      map.set("you", {
-        name: user.name,
-        initials: user.initials,
-        tint: user.tint,
-      });
-    }
+    // Mock rows still author as the "you" sentinel; Step 4 replaces it with a
+    // real profiles.id.
+    map.set("you", {
+      name: user.name,
+      initials: user.initials,
+      tint: user.tint,
+    });
     return (id: string): AuthorInfo =>
       map.get(id) ?? {
         name: "A member",
@@ -80,8 +61,6 @@ export function LibraryView({
     });
     return c;
   }, [resources]);
-
-  if (!ready || !user) return null;
 
   const shown =
     filter === "all" ? resources : resources.filter((r) => r.kind === filter);

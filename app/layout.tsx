@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Newsreader, Public_Sans, Space_Mono } from "next/font/google";
 
-import { SessionProvider } from "@/components/session";
 import "./globals.css";
 
 // Font roles are mapped to these CSS variables in globals.css.
@@ -42,11 +41,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fontVariables} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <SessionProvider>
-          <div className="flex flex-1 flex-col bg-bg font-body text-ink">
-            {children}
-          </div>
-        </SessionProvider>
+        <div className="flex flex-1 flex-col bg-bg font-body text-ink">
+          {children}
+        </div>
       </body>
     </html>
   );
