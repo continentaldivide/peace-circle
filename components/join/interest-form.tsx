@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useRef, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 
 import { RingMark } from "@/components/ring-mark";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 import { submitInquiry } from "@/app/actions/inquiries";
 import {
   emptyInquiryValues,
@@ -60,6 +61,17 @@ export function InterestForm() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setValues((prev) => ({ ...prev, [field]: e.target.value }));
 
+  /**
+   * Border and ring in the warning colour, so a problem is visible from the
+   * shape of the field and not only from the sentence beneath it.
+   */
+  const fieldClass = (field: InquiryField) =>
+    cn(
+      inputClass,
+      shownError(field) &&
+        "border-warn ring-2 ring-warn-soft focus:border-warn",
+    );
+
   const blur = (field: InquiryField) => () =>
     setTouched((prev) => ({ ...prev, [field]: true }));
 
@@ -80,7 +92,12 @@ export function InterestForm() {
       return;
     }
 
-    formAction(new FormData(e.currentTarget));
+    // useActionState's dispatch has to run inside a transition, which the
+    // `action` prop would have done for us. We take the submit over by hand
+    // to hold invalid forms back, so we owe React the transition ourselves —
+    // without it `pending` never flips and the button keeps saying "Send".
+    const data = new FormData(e.currentTarget);
+    startTransition(() => formAction(data));
   }
 
   if (state.status === "sent") {
@@ -132,6 +149,14 @@ export function InterestForm() {
         ref={formRef}
         onSubmit={handleSubmit}
         noValidate
+        /**
+         * Off so the browser does not restore field values on reload. These
+         * inputs are controlled, so a restored value is a second source of
+         * truth: React holds "" and the DOM holds the old text, and the next
+         * render — the first time you tab between fields — silently wipes it.
+         * Better that a reload start clean than that typing vanish later.
+         */
+        autoComplete="off"
         className="flex flex-col gap-5"
       >
         {/* Honeypot: hidden from people, tempting to bots. Off-screen rather
@@ -172,7 +197,7 @@ export function InterestForm() {
             onBlur={blur("name")}
             aria-invalid={!!shownError("name")}
             placeholder="e.g. Lisa Morrow"
-            className={inputClass}
+            className={fieldClass("name")}
           />
         </Field>
 
@@ -188,7 +213,7 @@ export function InterestForm() {
             onBlur={blur("email")}
             aria-invalid={!!shownError("email")}
             placeholder="you@example.com"
-            className={inputClass}
+            className={fieldClass("email")}
           />
         </Field>
 
@@ -205,7 +230,7 @@ export function InterestForm() {
             onBlur={blur("heardFrom")}
             aria-invalid={!!shownError("heardFrom")}
             placeholder="A friend, a flyer, something you read…"
-            className={`${inputClass} resize-none`}
+            className={cn(fieldClass("heardFrom"), "resize-none")}
           />
         </Field>
 
@@ -223,7 +248,7 @@ export function InterestForm() {
             onBlur={blur("referredBy")}
             aria-invalid={!!shownError("referredBy")}
             placeholder="If so, who?"
-            className={inputClass}
+            className={fieldClass("referredBy")}
           />
         </Field>
 
@@ -241,7 +266,7 @@ export function InterestForm() {
             onBlur={blur("message")}
             aria-invalid={!!shownError("message")}
             placeholder="However much or little you'd like to say."
-            className={`${inputClass} resize-none`}
+            className={cn(fieldClass("message"), "resize-none")}
           />
         </Field>
 
@@ -250,7 +275,7 @@ export function InterestForm() {
         {state.status === "error" ? (
           <p
             role="alert"
-            className="rounded-[10px] border border-line bg-bg px-4 py-3 font-body text-[14px] leading-relaxed text-accent"
+            className="rounded-[10px] border border-warn bg-warn-soft px-4 py-3 font-body text-[14px] leading-relaxed text-warn"
           >
             {state.formError ??
               "Nothing was sent — please check the fields above."}

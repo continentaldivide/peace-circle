@@ -95,7 +95,7 @@ export async function submitInquiry(
       "Were you referred by a current member?",
       referredBy || "(not answered)",
       "",
-      "Anything else they'd like us to know?",
+      "Anything you'd like us to know?",
       message || "(not answered)",
       "",
       "Reply to this email to write back to them directly.",
