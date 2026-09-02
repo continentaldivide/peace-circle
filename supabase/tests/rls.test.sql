@@ -8,7 +8,7 @@
 -- Run with: supabase test db
 
 begin;
-select plan(66);
+select plan(71);
 
 -- Seeded fixtures (see supabase/seed.sql).
 --   1111… Lisa  — approved admin
@@ -628,6 +628,79 @@ select is(
   'revoked'::public.profile_status,
   'a refused redemption leaves a revoked profile revoked'
 );
+
+-- ---------------------------------------------------------------------------
+-- What a member may write to their own profile, and what the two writers that
+-- are not forms do with a name they did not validate.
+-- ---------------------------------------------------------------------------
+
+-- Signup metadata is whatever the browser sent to the auth server, and the
+-- auth endpoint is public — no client-side rule constrains it. A 250-character
+-- name must therefore not be able to turn a redemption into a database error.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+  'authenticated', 'authenticated', 'longname@example.com', '',
+  now(), now(), now(),
+  '{"provider":"email","providers":["email"]}',
+  jsonb_build_object('name', repeat('n', 250))
+);
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee","role":"authenticated"}';
+
+select is(
+  public.redeem_launch_code('CIRCLE-LAUNCH'),
+  'redeemed'::public.launch_code_outcome,
+  'an over-long signup name does not break redemption'
+);
+
+reset role;
+
+select is(
+  (select char_length(name) from public.profiles
+     where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
+  100,
+  'the name is clamped to the column ceiling rather than refused'
+);
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+
+select lives_ok(
+  $$update public.profiles set avatar_tint = '#6b7355'
+      where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
+  'a member may set a hex avatar tint'
+);
+
+-- avatar_tint is interpolated into a CSS `background`. `url(...)` is a legal
+-- background value, so an unconstrained column here would let one member make
+-- every other member's browser fetch a URL of their choosing.
+select throws_ok(
+  $$update public.profiles
+      set avatar_tint = 'url(https://example.com/beacon.png)'
+      where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
+  '23514',
+  null,
+  'a member cannot put anything but a hex colour in avatar_tint'
+);
+
+select throws_ok(
+  $$update public.profiles set name = repeat('x', 101)
+      where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
+  '23514',
+  null,
+  'a member cannot set an unbounded display name'
+);
+
+reset role;
 
 -- The argument list is itself part of the security boundary: there is exactly
 -- one signature, taking one code, so no call can name a role, a status, or an
