@@ -8,7 +8,7 @@
 -- Run with: supabase test db
 
 begin;
-select plan(56);
+select plan(66);
 
 -- Seeded fixtures (see supabase/seed.sql).
 --   1111… Lisa  — approved admin
@@ -77,6 +77,83 @@ select throws_ok(
   '42501',
   null,
   'anon cannot write admin notes onto an inquiry'
+);
+
+-- The length ceilings on the one table anyone on the internet may write to.
+-- Each is tested at the limit and one character past it, which pins the number
+-- exactly: raising a ceiling in the migration without changing this file fails
+-- the "one over is refused" case, and lowering one fails the "at the limit is
+-- accepted" case.
+--
+-- These numbers are also written down in INQUIRY_LIMITS in lib/inquiries.ts,
+-- and nothing checks the two against each other — there is no JavaScript test
+-- runner here yet (PLAN.md puts one after Step 3). This half is the one that
+-- decides what actually reaches the column, so it is the half worth pinning
+-- first.
+
+select lives_ok(
+  $$insert into public.inquiries (name, email, heard_from)
+    values (repeat('x', 100), 'atlimit@example.com', 'ok')$$,
+  'a 100-character name is accepted'
+);
+select throws_ok(
+  $$insert into public.inquiries (name, email, heard_from)
+    values (repeat('x', 101), 'toolong@example.com', 'ok')$$,
+  '23514',
+  null,
+  'a 101-character name is refused'
+);
+
+select lives_ok(
+  $$insert into public.inquiries (name, email, heard_from)
+    values ('At Limit', repeat('e', 242) || '@example.com', 'ok')$$,
+  'a 254-character email address is accepted'
+);
+select throws_ok(
+  $$insert into public.inquiries (name, email, heard_from)
+    values ('Too Long', repeat('e', 243) || '@example.com', 'ok')$$,
+  '23514',
+  null,
+  'a 255-character email address is refused'
+);
+
+select lives_ok(
+  $$insert into public.inquiries (name, email, heard_from)
+    values ('At Limit', 'heard@example.com', repeat('x', 1000))$$,
+  'a 1000-character "how did you hear" is accepted'
+);
+select throws_ok(
+  $$insert into public.inquiries (name, email, heard_from)
+    values ('Too Long', 'heard@example.com', repeat('x', 1001))$$,
+  '23514',
+  null,
+  'a 1001-character "how did you hear" is refused'
+);
+
+select lives_ok(
+  $$insert into public.inquiries (name, email, heard_from, referred_by)
+    values ('At Limit', 'ref@example.com', 'ok', repeat('x', 100))$$,
+  'a 100-character referral is accepted'
+);
+select throws_ok(
+  $$insert into public.inquiries (name, email, heard_from, referred_by)
+    values ('Too Long', 'ref@example.com', 'ok', repeat('x', 101))$$,
+  '23514',
+  null,
+  'a 101-character referral is refused'
+);
+
+select lives_ok(
+  $$insert into public.inquiries (name, email, heard_from, message)
+    values ('At Limit', 'msg@example.com', 'ok', repeat('x', 2000))$$,
+  'a 2000-character message is accepted'
+);
+select throws_ok(
+  $$insert into public.inquiries (name, email, heard_from, message)
+    values ('Too Long', 'msg@example.com', 'ok', repeat('x', 2001))$$,
+  '23514',
+  null,
+  'a 2001-character message is refused'
 );
 
 reset role;
