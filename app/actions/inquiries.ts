@@ -2,7 +2,7 @@
 
 import { adminNotifyList, sendEmail } from "@/lib/email";
 import type { InquiryState, InquiryValues } from "@/lib/inquiries";
-import { validateInquiry } from "@/lib/inquiries";
+import { HONEYPOT_FIELD, validateInquiry } from "@/lib/inquiries";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -31,7 +31,16 @@ export async function submitInquiry(
   // Honeypot. A person never sees this field, so anything in it means a bot
   // walked the form. Answer exactly as we would a real submission — telling a
   // bot it was caught just teaches whoever wrote it to fill the field in.
-  if (String(formData.get("website") ?? "").trim() !== "") {
+  if (String(formData.get(HONEYPOT_FIELD) ?? "").trim() !== "") {
+    // The field name and the data-*-ignore attributes are what keep a password
+    // manager from filling this for a real person and getting them discarded
+    // as a bot. Neither is a guarantee, so this line is how we check the trap
+    // is still catching only what it is meant to: hits here should carry
+    // junk, and a run of plausible addresses means the guards have stopped
+    // working.
+    console.info(
+      `[inquiries] honeypot filled — discarded a submission from ${email || "(no address)"}`,
+    );
     return { status: "sent" };
   }
 
@@ -39,7 +48,15 @@ export async function submitInquiry(
   // entirely. Same rules as the form uses, from the same module.
   const errors = validateInquiry(values);
   if (Object.keys(errors).length > 0) {
-    return { status: "error", errors, values };
+    // The form will not submit while any of these fail, so reaching this means
+    // the client was bypassed rather than that someone mistyped something.
+    console.warn(
+      `[inquiries] rejected a submission that the form would not have sent: ${Object.keys(errors).join(", ")}`,
+    );
+    return {
+      status: "error",
+      formError: "Some of those answers weren't quite right. Please try again.",
+    };
   }
 
   const supabase = await createClient();
@@ -56,7 +73,6 @@ export async function submitInquiry(
       status: "error",
       formError:
         "Something went wrong saving that. Please try again in a moment.",
-      values,
     };
   }
 
@@ -65,6 +81,9 @@ export async function submitInquiry(
   // asked to resubmit. sendEmail returns rather than throws for this reason.
   const result = await sendEmail({
     to: adminNotifyList(),
+    // `name` is safe to interpolate into this header: validateInquiry has
+    // already rejected any control character in it, so there is no newline
+    // here to split the subject and inject a header of someone's choosing.
     subject: `Peace Circle — new inquiry from ${name}`,
     replyTo: email,
     text: [

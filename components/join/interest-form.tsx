@@ -8,19 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
 import { submitInquiry } from "@/app/actions/inquiries";
 import {
+  emptyInquiryValues,
   initialInquiryState,
+  HONEYPOT_FIELD,
   validateInquiry,
+  INQUIRY_FIELDS,
+  INQUIRY_LIMITS,
   type InquiryField,
   type InquiryValues,
 } from "@/lib/inquiries";
 
-const EMPTY: InquiryValues = {
-  name: "",
-  email: "",
-  heardFrom: "",
-  referredBy: "",
-  message: "",
-};
+/** Every field revealed at once, for the moment someone presses Send. */
+const ALL_TOUCHED = Object.fromEntries(
+  INQUIRY_FIELDS.map((field) => [field, true]),
+) as Record<InquiryField, boolean>;
 
 /**
  * The public interest form.
@@ -40,7 +41,7 @@ export function InterestForm() {
     submitInquiry,
     initialInquiryState,
   );
-  const [values, setValues] = useState<InquiryValues>(EMPTY);
+  const [values, setValues] = useState<InquiryValues>(emptyInquiryValues);
   const [touched, setTouched] = useState<
     Partial<Record<InquiryField, boolean>>
   >({});
@@ -55,7 +56,7 @@ export function InterestForm() {
     touched[field] ? errors[field] : undefined;
 
   const set =
-    (field: keyof InquiryValues) =>
+    (field: InquiryField) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setValues((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -68,11 +69,11 @@ export function InterestForm() {
 
     if (!isValid) {
       // Reveal every outstanding problem at once and put the caret in the
-      // first one. Nothing is sent, so there is no round trip to lose.
-      setTouched({ name: true, email: true, heardFrom: true });
-      const firstInvalid = (["name", "email", "heardFrom"] as const).find(
-        (f) => errors[f],
-      );
+      // first one. Nothing is sent, so there is no round trip to lose. Walking
+      // INQUIRY_FIELDS rather than a hand-written list means a field can never
+      // hold the form shut with an error nobody was shown.
+      setTouched(ALL_TOUCHED);
+      const firstInvalid = INQUIRY_FIELDS.find((field) => errors[field]);
       formRef.current
         ?.querySelector<HTMLElement>(`[name="${firstInvalid}"]`)
         ?.focus();
@@ -134,15 +135,28 @@ export function InterestForm() {
         className="flex flex-col gap-5"
       >
         {/* Honeypot: hidden from people, tempting to bots. Off-screen rather
-            than display:none, which some bots skip. */}
+            than display:none, which some bots skip.
+
+            The name and the label are both deliberately bland. Password
+            managers match fields semantically, so anything recognisable —
+            "website" above all — gets autofilled for a real person, who is
+            then silently discarded as a bot. The data-*-ignore attributes ask
+            the four common managers to skip the field outright; they are
+            advisory and unsupported ones ignore them, which is why the
+            meaningless name is doing the real work. Bots need none of this to
+            take the bait: they fill every input they can parse. */}
         <div className="absolute left-[-9999px]" aria-hidden="true">
           <label>
-            Website
+            Note
             <input
               type="text"
-              name="website"
+              name={HONEYPOT_FIELD}
               tabIndex={-1}
               autoComplete="off"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-bwignore="true"
+              data-form-type="other"
             />
           </label>
         </div>
@@ -152,6 +166,7 @@ export function InterestForm() {
             name="name"
             type="text"
             autoComplete="name"
+            maxLength={INQUIRY_LIMITS.name}
             value={values.name}
             onChange={set("name")}
             onBlur={blur("name")}
@@ -167,6 +182,7 @@ export function InterestForm() {
             type="email"
             inputMode="email"
             autoComplete="email"
+            maxLength={INQUIRY_LIMITS.email}
             value={values.email}
             onChange={set("email")}
             onBlur={blur("email")}
@@ -183,6 +199,7 @@ export function InterestForm() {
           <textarea
             name="heardFrom"
             rows={2}
+            maxLength={INQUIRY_LIMITS.heardFrom}
             value={values.heardFrom}
             onChange={set("heardFrom")}
             onBlur={blur("heardFrom")}
@@ -192,23 +209,37 @@ export function InterestForm() {
           />
         </Field>
 
-        <Field label="Were you referred by a current member?" hint="(optional)">
+        <Field
+          label="Were you referred by a current member?"
+          hint="(optional)"
+          error={shownError("referredBy")}
+        >
           <input
             name="referredBy"
             type="text"
+            maxLength={INQUIRY_LIMITS.referredBy}
             value={values.referredBy}
             onChange={set("referredBy")}
+            onBlur={blur("referredBy")}
+            aria-invalid={!!shownError("referredBy")}
             placeholder="If so, who?"
             className={inputClass}
           />
         </Field>
 
-        <Field label="Anything you'd like us to know?" hint="(optional)">
+        <Field
+          label="Anything you'd like us to know?"
+          hint="(optional)"
+          error={shownError("message")}
+        >
           <textarea
             name="message"
             rows={3}
+            maxLength={INQUIRY_LIMITS.message}
             value={values.message}
             onChange={set("message")}
+            onBlur={blur("message")}
+            aria-invalid={!!shownError("message")}
             placeholder="However much or little you'd like to say."
             className={`${inputClass} resize-none`}
           />
