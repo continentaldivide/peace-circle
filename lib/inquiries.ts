@@ -9,6 +9,8 @@
  * beside them is clearer than splitting the two.
  */
 
+import { emailError, nameError } from "@/lib/validation";
+
 /**
  * Every field on the form, in the order it is asked. One list, derived from
  * rather than repeated by everything downstream: the value type, the limits,
@@ -84,13 +86,6 @@ export type InquiryState = {
 export const initialInquiryState: InquiryState = { status: "idle" };
 
 /**
- * Any Unicode control character — the category a bare carriage return or line
- * feed falls into. Written as a property escape rather than a literal range so
- * this source file contains no control characters of its own.
- */
-const CONTROL_CHARACTER = /\p{Cc}/u;
-
-/**
  * The validation rules, in one place.
  *
  * Imported by both the form and the server action on purpose. Two copies is
@@ -98,26 +93,25 @@ const CONTROL_CHARACTER = /\p{Cc}/u;
  * server did not, so a visitor got their answers wiped with no explanation.
  * The form uses these to refuse to submit; the action re-runs them because a
  * client can always be bypassed.
+ *
+ * The name and email rules come from `lib/validation.ts`, which /welcome uses
+ * too — both fields end up in an email header, and that rule should not be
+ * something each form remembers on its own.
  */
 export function validateInquiry(
   values: InquiryValues,
 ): Partial<Record<InquiryField, string>> {
   const errors: Partial<Record<InquiryField, string>> = {};
 
-  if (values.name.trim().length < 2) {
-    errors.name = "Please add your name.";
-  } else if (CONTROL_CHARACTER.test(values.name.trim())) {
-    // The name goes into an email subject line, which is a header, and a
-    // newline in a header is the shape header injection takes. Rejected here
-    // rather than stripped at the send, so the action can trust what it holds.
-    errors.name = "Please write your name on a single line.";
-  }
+  // Assigned conditionally rather than unconditionally: these return
+  // undefined for a field that is fine, and a present-but-undefined key would
+  // still count in the `Object.keys(errors).length` test both callers use to
+  // decide whether the form may submit.
+  const name = nameError(values.name);
+  if (name) errors.name = name;
 
-  // Requires a dot: an address without one cannot receive the reply this form
-  // exists to produce, though the browser's own type="email" check allows it.
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
-    errors.email = "Please enter a full email address, like you@example.org.";
-  }
+  const email = emailError(values.email);
+  if (email) errors.email = email;
 
   if (values.heardFrom.trim().length < 2) {
     errors.heardFrom = "Please tell us a little about how you found us.";
