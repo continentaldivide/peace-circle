@@ -351,9 +351,20 @@ export type Database = {
     Functions: {
       is_admin: { Args: never; Returns: boolean }
       is_approved: { Args: never; Returns: boolean }
+      redeem_launch_code: {
+        Args: { p_code: string }
+        Returns: Database["public"]["Enums"]["launch_code_outcome"]
+      }
     }
     Enums: {
       inquiry_status: "new" | "reviewing" | "invited" | "joined" | "declined"
+      launch_code_outcome:
+        | "redeemed"
+        | "already_member"
+        | "revoked"
+        | "not_found"
+        | "expired"
+        | "exhausted"
       profile_status: "approved" | "revoked"
       resource_kind: "quote" | "link" | "picture" | "book"
     }
@@ -487,6 +498,14 @@ export const Constants = {
   public: {
     Enums: {
       inquiry_status: ["new", "reviewing", "invited", "joined", "declined"],
+      launch_code_outcome: [
+        "redeemed",
+        "already_member",
+        "revoked",
+        "not_found",
+        "expired",
+        "exhausted",
+      ],
       profile_status: ["approved", "revoked"],
       resource_kind: ["quote", "link", "picture", "book"],
     },

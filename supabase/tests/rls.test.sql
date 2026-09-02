@@ -8,7 +8,7 @@
 -- Run with: supabase test db
 
 begin;
-select plan(36);
+select plan(56);
 
 -- Seeded fixtures (see supabase/seed.sql).
 --   1111… Lisa  — approved admin
@@ -309,6 +309,272 @@ select is(
 );
 
 reset role;
+
+-- ===========================================================================
+-- 8. Launch-code redemption.
+--    The only sanctioned path that creates a profile for an ordinary person,
+--    so it holds privileges nobody else in this file has: it writes to
+--    `profiles`, which has no insert policy at all, and to `launch_codes`,
+--    which is admin-only. These tests are the boundary on that privilege —
+--    what it must refuse, and what it must never mint.
+-- ===========================================================================
+
+insert into public.launch_codes (code, expires_at, max_uses)
+values
+  ('CIRCLE-LAUNCH',  now() + interval '30 days', 3),
+  ('CIRCLE-EXPIRED', now() - interval '1 day',   null),
+  ('CIRCLE-FULL',    now() + interval '30 days', 1);
+
+-- The last seat on CIRCLE-FULL is already spent.
+update public.launch_codes set uses = 1 where code = 'CIRCLE-FULL';
+
+-- Three people holding a code. None is allowlisted, so the bootstrap trigger
+-- leaves them profile-less exactly as a real cohort member would be.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data
+)
+values
+  ('00000000-0000-0000-0000-000000000000',
+   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'authenticated', 'authenticated', 'cohort@example.com', '',
+   now(), now(), now(),
+   '{"provider":"email","providers":["email"]}', '{"name":"Cohort Member"}'),
+  ('00000000-0000-0000-0000-000000000000',
+   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+   'authenticated', 'authenticated', 'toolate@example.com', '',
+   now(), now(), now(),
+   '{"provider":"email","providers":["email"]}', '{"name":"Too Late"}'),
+  ('00000000-0000-0000-0000-000000000000',
+   'cccccccc-cccc-cccc-cccc-cccccccccccc',
+   'authenticated', 'authenticated', 'noseat@example.com', '',
+   now(), now(), now(),
+   '{"provider":"email","providers":["email"]}', '{"name":"No Seat"}');
+
+-- An anonymous visitor cannot reach the function at all. Redemption requires
+-- a session, because it is the session that says whose profile to create.
+set local role anon;
+set local request.jwt.claims = '';
+
+select throws_ok(
+  $$select public.redeem_launch_code('CIRCLE-LAUNCH')$$,
+  '42501',
+  null,
+  'anon cannot execute redeem_launch_code'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- The happy path.
+-- ---------------------------------------------------------------------------
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+
+-- Lower case and padded, as it arrives from someone retyping a code read out
+-- at a meeting or pasting it with a trailing space.
+select is(
+  public.redeem_launch_code('  circle-launch  '),
+  'redeemed'::public.launch_code_outcome,
+  'a valid code is redeemed, case- and whitespace-insensitively'
+);
+
+reset role;
+
+select is(
+  (select status from public.profiles
+     where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  'approved'::public.profile_status,
+  'redemption creates an approved profile'
+);
+
+-- The point of the whole function. A launch code is distributed to a cohort
+-- and may be forwarded; it must never be able to produce an admin.
+select is(
+  (select is_admin from public.profiles
+     where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  false,
+  'redemption creates a NON-admin profile'
+);
+
+-- The function takes a code and nothing else, so `role` cannot be chosen by
+-- the caller either — it is a literal in the insert.
+select is(
+  (select role from public.profiles
+     where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  'Member',
+  'redemption cannot choose its own role label'
+);
+
+select is(
+  (select name from public.profiles
+     where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  'Cohort Member',
+  'the new profile takes its name from the signup metadata'
+);
+
+select is(
+  (select uses from public.launch_codes where code = 'CIRCLE-LAUNCH'),
+  1,
+  'a successful redemption spends exactly one seat'
+);
+
+-- ---------------------------------------------------------------------------
+-- Redeeming twice is a no-op, not a second seat. Someone double-clicking, or
+-- re-opening the link from their inbox, must not burn a seat they already hold.
+-- ---------------------------------------------------------------------------
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+
+select is(
+  public.redeem_launch_code('CIRCLE-LAUNCH'),
+  'already_member'::public.launch_code_outcome,
+  'redeeming again reports already_member rather than failing'
+);
+
+-- Being approved does not open the code table. Redemption grants membership,
+-- not visibility into how many seats are left or who else used them.
+select is(
+  (select count(*) from public.launch_codes),
+  0::bigint,
+  'a redeemed member still reads no launch codes'
+);
+
+select is(
+  public.redeem_launch_code('NO-SUCH-CODE'),
+  'not_found'::public.launch_code_outcome,
+  'an unrecognised code reports not_found'
+);
+
+reset role;
+
+select is(
+  (select uses from public.launch_codes where code = 'CIRCLE-LAUNCH'),
+  1,
+  'a repeat redemption does not spend a second seat'
+);
+
+-- ---------------------------------------------------------------------------
+-- An expired code is refused. This is what lets the launch window close.
+-- ---------------------------------------------------------------------------
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}';
+
+select is(
+  public.redeem_launch_code('CIRCLE-EXPIRED'),
+  'expired'::public.launch_code_outcome,
+  'an expired code is refused'
+);
+
+reset role;
+
+select is(
+  (select count(*) from public.profiles
+     where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+  0::bigint,
+  'a refused expired code creates no profile'
+);
+
+-- ---------------------------------------------------------------------------
+-- A code at its cap is refused. This is what bounds a forwarded code.
+-- ---------------------------------------------------------------------------
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}';
+
+select is(
+  public.redeem_launch_code('CIRCLE-FULL'),
+  'exhausted'::public.launch_code_outcome,
+  'a code at its max_uses is refused'
+);
+
+reset role;
+
+select is(
+  (select count(*) from public.profiles
+     where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+  0::bigint,
+  'a refused exhausted code creates no profile'
+);
+
+select is(
+  (select uses from public.launch_codes where code = 'CIRCLE-FULL'),
+  1,
+  'a refused redemption does not push uses past max_uses'
+);
+
+-- ---------------------------------------------------------------------------
+-- A revoked member cannot let themselves back in with a code. Revocation is
+-- the only way to remove someone (deleting a profile would cascade away
+-- everything they ever wrote), so a code must not undo it.
+-- ---------------------------------------------------------------------------
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  'dddddddd-dddd-dddd-dddd-dddddddddddd',
+  'authenticated', 'authenticated', 'formermember@example.com', '',
+  now(), now(), now(),
+  '{"provider":"email","providers":["email"]}', '{"name":"Former Member"}'
+);
+
+insert into public.profiles (id, name, status)
+values ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Former Member', 'revoked');
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
+
+select is(
+  public.redeem_launch_code('CIRCLE-LAUNCH'),
+  'revoked'::public.launch_code_outcome,
+  'a revoked member cannot redeem their way back in'
+);
+
+reset role;
+
+select is(
+  (select status from public.profiles
+     where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
+  'revoked'::public.profile_status,
+  'a refused redemption leaves a revoked profile revoked'
+);
+
+-- The argument list is itself part of the security boundary: there is exactly
+-- one signature, taking one code, so no call can name a role, a status, or an
+-- is_admin. A second overload with more parameters would defeat every
+-- assertion above, and would not otherwise fail anything.
+select is(
+  (select count(*)
+     from pg_catalog.pg_proc p
+     join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'redeem_launch_code'),
+  1::bigint,
+  'redeem_launch_code has exactly one signature'
+);
+
+select is(
+  (select pg_catalog.pg_get_function_identity_arguments(p.oid)
+     from pg_catalog.pg_proc p
+     join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'redeem_launch_code'),
+  'p_code text',
+  'redeem_launch_code takes a code and nothing else'
+);
 
 select * from finish();
 rollback;
