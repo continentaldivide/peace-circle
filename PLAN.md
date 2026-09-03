@@ -100,12 +100,41 @@ them go red. Run with `supabase test db`.
 
 ## Status
 
-Steps 1 and 2 are done: there is a hosted Supabase project with the schema
-pushed, and the access gate is real. Member pages are server components that
-call `requireApproved()` before rendering, backed by RLS — the localStorage
-stub and its client-side redirects are gone, so view-source no longer reveals
-the circle's contents. A magic-link round trip has been verified end to end
-against the local stack.
+Steps 1, 2 and 3 are done: there is a hosted Supabase project with the schema
+pushed, the access gate is real, and both ways into the circle work. Member
+pages are server components that call `requireApproved()` before rendering,
+backed by RLS — the localStorage stub and its client-side redirects are gone,
+so view-source no longer reveals the circle's contents.
+
+Onboarding is complete end to end, verified in a browser against the local
+stack rather than reasoned about:
+
+- **`/join` is the interest form.** No auth, no magic link — it inserts an
+  `inquiries` row and emails the admin notify list with reply-to set to the
+  applicant. The loop it used to create (`/pending` → `/join` → signed in →
+  back to `/pending`) is gone.
+- **`/welcome` handles both ways in.** `?code=` collects a name and email,
+  sends a magic link that carries the code back through the callback's `next`
+  parameter, redeems it, and ends on the finish-profile step. An invite link
+  lands on `/auth/confirm`, which turns its token hash into a session and
+  joins the same finish step.
+- **Redemption is atomic and lives in the database.** `redeem_launch_code()`
+  locks the code row before it checks the expiry or the cap, so two people
+  redeeming the last seat at the same moment cannot both pass. It is
+  `security definer` because `launch_codes` is admin-only and `profiles` has
+  no insert policy at all — which is also why nothing yet needs the
+  service-role key. Step 7's invites will be the first thing that does.
+
+Two deliberate omissions inside Step 3, so they are not mistaken for oversights:
+
+- **No per-IP rate limit on `/join`.** It would need its own table, since
+  serverless instances share no memory, and the honeypot is hardened and the
+  form gates client-side. Deferred until spam actually appears rather than
+  built against a hypothetical.
+- **Neither `/welcome` path has an in-app producer yet.** Nothing creates
+  launch codes (Step 8) and nothing sends invites (Step 7), so both are
+  driven by hand for now — a `launch_codes` row via psql, an invite through
+  the admin API.
 
 What the gate now protects is still mock data. `lib/data/index.ts` returns
 arrays from `lib/data/mock.ts`, so an authenticated member sees fictional
@@ -120,18 +149,22 @@ Still stubbed or missing:
 - **No uploads.** Picture resources carry a `placeholder` string; the composer's
   drop zone is decorative (Step 6).
 - **No search.** The Library filters by kind in memory (Step 6).
-- **`/join` is not yet the interest form.** It still sends a magic link, which
-  means a stranger loops: `/pending` offers "tell us about yourself", `/join`
-  signs them in, and the gate returns them to `/pending`. Step 3 breaks the
-  loop by making `/join` an inquiry with no auth.
-- **No outgoing email.** Nothing sends mail yet, and Supabase Auth still uses
-  its own sender — the dashboard SMTP switch waits on a verified sending
-  domain. Locally this is moot: `supabase start` catches auth mail in Mailpit.
-- **`admin_emails` is empty on the hosted project.** The bootstrap trigger
-  exists but has nothing to match, so no one can become an admin there. The
-  seed covers this locally; the migration in Step 1 is still outstanding.
+- **Nothing is emailed from the hosted project yet.** The outgoing seam is
+  built (`lib/email.ts`) and `/join` uses it, but without `RESEND_API_KEY` it
+  logs instead of sending, and Supabase Auth still uses its own sender — the
+  dashboard SMTP switch waits on a verified sending domain. Locally this is
+  moot: `supabase start` catches every auth mail in Mailpit.
+- **The hosted project is behind the repo.** Four migrations exist locally and
+  have not been `db push`ed: the admin allowlist, the inquiry length limits,
+  the launch-code redemption, and the profile field limits. Until the first of
+  those lands, `admin_emails` is empty there and nobody can become an admin.
+  The hosted invite email template
+  also needs setting by hand in the dashboard to point at `/auth/confirm` —
+  `config.toml` describes the local stack and is never pushed, so an invite
+  sent from the hosted project would otherwise arrive with a link this app
+  cannot complete.
 - **Placeholder pages** — `/about` and `/admin` render `PlaceholderPage`.
-  `/pending` is now a real screen.
+  `/pending` and `/welcome` are now real screens.
 
 ---
 
@@ -192,6 +225,7 @@ Implements **Member sign-up & onboarding** below.
   signup): honeypot field, per-IP rate limit, insert an `inquiries` row, email
   `ADMIN_NOTIFY_EMAILS` via Resend with **reply-to set to the applicant**, then
   show the warm confirmation. No auth, no magic link.
+  _Built, except the rate limit — deferred, see Status._
 - Add `/welcome`, handling both the per-person invite token and `?code=`
   launch-code redemption, ending in the short finish-profile step.
 - Launch-code redemption must check `expires_at` and `max_uses` and increment
