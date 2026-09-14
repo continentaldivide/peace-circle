@@ -26,17 +26,40 @@ export function relativeRedirect(path: string) {
 }
 
 /**
- * `next` comes from the URL, so it is attacker-controlled. Anything but a
- * single-slash relative path is discarded.
+ * Stands in for this site when resolving `next`. Only its origin matters: a
+ * path that resolves somewhere else against it would do the same against the
+ * real host. `.invalid` is reserved, so it can never be a real site.
+ */
+const SELF = "http://self.invalid";
+
+/**
+ * `next` comes from the URL, so it is attacker-controlled. Anything that would
+ * not keep the browser on this site is discarded.
  *
- * The three shapes this refuses are all valid redirect targets to a browser:
- * `https://evil.com` obviously, `//evil.com` because a protocol-relative URL
- * is absolute, and `/\evil.com` because browsers normalise backslashes to
- * forward slashes before resolving — so it becomes the second case. Any of
- * them would send the freshly minted session to somebody else's site.
+ * This asks the URL parser rather than matching characters, because browsers
+ * clean an address up before following it and a pattern cannot keep pace with
+ * every way they do. The previous pattern refused `//evil.com` and
+ * `/\evil.com` but let `/<tab>/evil.com` through — browsers delete tabs, so it
+ * became the first. Parsing with the browser's own rules closes that whole
+ * family at once.
+ *
+ * The check runs on the string actually returned, not on the input, because
+ * serialising a parsed URL is itself a rewrite: `/.//evil.com` resolves safely
+ * as given, but its pathname collapses to `//evil.com`, which does not.
  */
 export function safeNext(next: string | null, fallback: string): string {
-  if (!next) return fallback;
-  if (!/^\/($|[^/\\])/.test(next)) return fallback;
-  return next;
+  if (!next?.startsWith("/")) return fallback;
+  try {
+    const url = new URL(next, SELF);
+    // Serialised rather than passed through, so control characters arrive
+    // percent-encoded instead of making the Location header throw.
+    const path = url.pathname + url.search + url.hash;
+    if (url.origin !== SELF || new URL(path, SELF).origin !== SELF) {
+      return fallback;
+    }
+    return path;
+  } catch {
+    // Unparseable, such as `//[` — an invalid host.
+    return fallback;
+  }
 }
