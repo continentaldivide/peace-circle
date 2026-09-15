@@ -28,10 +28,12 @@ function CommentPip({ n }: { n: number }) {
 export function ResourceCard({
   r,
   author,
+  now,
   onOpen,
 }: {
   r: Resource;
   author: AuthorInfo;
+  now: string;
   onOpen: (id: string) => void;
 }) {
   return (
@@ -50,7 +52,7 @@ export function ResourceCard({
       <KindTag kind={r.kind} />
       <ResourceBody r={r} />
       <div className="mt-3 flex items-center justify-between border-t border-line pt-[11px]">
-        <CardMeta author={author} createdAt={r.createdAt} />
+        <CardMeta author={author} createdAt={r.createdAt} now={now} />
         <CommentPip n={r.comments.length} />
       </div>
     </article>

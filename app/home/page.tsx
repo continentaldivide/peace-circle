@@ -12,6 +12,11 @@ export default async function HomePage() {
   // layouts do not re-render on client-side navigation.
   const user = await getSignedInMember();
 
+  // One instant for every "today", "just now", and greeting on the page. Taken
+  // here, on the server, and passed down so the browser hydrates against the
+  // same moment instead of reading its own clock (see lib/time.ts).
+  const now = new Date().toISOString();
+
   const [resources, members, messagePage, events] = await Promise.all([
     getResources(),
     getMembers(),
@@ -22,6 +27,7 @@ export default async function HomePage() {
   return (
     <HomeView
       user={user}
+      now={now}
       initialResources={resources}
       members={members}
       messagePage={messagePage}

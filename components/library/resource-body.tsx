@@ -70,10 +70,13 @@ export function ResourceBody({ r }: { r: Resource }) {
 export function CardMeta({
   author,
   createdAt,
+  now,
 }: {
   author: AuthorInfo;
   /** ISO timestamp. */
   createdAt: string;
+  /** The page's render instant, so server and browser agree on the label. */
+  now: string;
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -83,7 +86,7 @@ export function CardMeta({
       </span>
       <span className="text-faint">·</span>
       <span className="font-body text-[12.5px] text-faint">
-        {formatRelative(createdAt)}
+        {formatRelative(createdAt, now)}
       </span>
     </div>
   );

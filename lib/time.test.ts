@@ -145,4 +145,10 @@ describe("formatRelative", () => {
   test("a clock slightly ahead of the server is still just now", () => {
     expect(formatRelative("2026-09-15T16:00:05Z", now)).toBe("just now");
   });
+
+  test("a share made in the browser after the page's now is just now", () => {
+    // Pages pass one server-side `now` down; a comment posted ten minutes
+    // later is stamped by the browser, after it.
+    expect(formatRelative("2026-09-15T16:10:00Z", now)).toBe("just now");
+  });
 });

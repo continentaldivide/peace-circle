@@ -58,12 +58,15 @@ function SectionHeader({
 
 export function HomeView({
   user,
+  now,
   initialResources,
   members,
   messagePage,
   events,
 }: {
   user: Member;
+  /** ISO instant the page was rendered at; see `lib/time.ts`. */
+  now: string;
   initialResources: Resource[];
   members: Member[];
   messagePage: MessagePage;
@@ -88,7 +91,7 @@ export function HomeView({
 
   // "Today" is the circle's today, not the browser's: the server renders this
   // too, and an event must not land on a different day for a member elsewhere.
-  const today = circleToday();
+  const today = circleToday(now);
 
   // Only what is still ahead. This used to fall back to past gatherings when
   // nothing was scheduled, which then announced a months-old circle as
@@ -104,7 +107,7 @@ export function HomeView({
   const next = upcoming[0];
 
   const greeting = (() => {
-    const h = circleHour();
+    const h = circleHour(now);
     if (h < 12) return "Good morning";
     if (h < 18) return "Good afternoon";
     return "Good evening";
@@ -178,7 +181,7 @@ export function HomeView({
           <div className="flex flex-col gap-[26px]">
             <section>
               <SectionHeader title="This month" />
-              <MonthCalendar events={events} />
+              <MonthCalendar events={events} now={now} />
             </section>
             {/* Hidden while nothing is scheduled; a designed empty state is
                 Step 7. */}
@@ -224,6 +227,7 @@ export function HomeView({
             initialPage={messagePage}
             loadOlder={loadOlderMessages}
             user={user}
+            now={now}
             lookup={lookup}
             className="order-first min-[720px]:col-span-2 min-[1080px]:order-none min-[1080px]:col-span-1"
           />
@@ -247,6 +251,7 @@ export function HomeView({
                   key={r.id}
                   r={r}
                   author={lookup(r.authorId)}
+                  now={now}
                   onOpen={setOpenId}
                 />
               ))}
@@ -259,6 +264,7 @@ export function HomeView({
         open={openId !== null}
         resource={openRes}
         user={user}
+        now={now}
         lookup={lookup}
         onClose={() => setOpenId(null)}
         onAddComment={addComment}

@@ -41,8 +41,15 @@ function buildCells(year: number, month: number): Cell[] {
 
 const MO = "font-display text-[17px] font-semibold text-ink";
 
-export function MonthCalendar({ events }: { events: CircleEvent[] }) {
-  const today = circleToday();
+export function MonthCalendar({
+  events,
+  now,
+}: {
+  events: CircleEvent[];
+  /** The page's render instant, so server and browser agree on today. */
+  now: string;
+}) {
+  const today = circleToday(now);
   // Events arrive earliest first. With nothing ahead there is no legend, and
   // the calendar opens on this month rather than on a past gathering.
   const next = events.find((e) => e.date >= today);

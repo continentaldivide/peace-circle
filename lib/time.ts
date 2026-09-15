@@ -8,6 +8,13 @@
  * UTC formatting with its own zone while a browser formats with another would
  * show different times and fail hydration.
  *
+ * Anything relative to the present takes `now` as a required argument, never
+ * reading the clock itself. A client component renders twice — once on the
+ * server, once in the browser to hydrate — and two readings of the clock can
+ * disagree: at the turn of a minute, or all the time on a device whose clock
+ * is off. Pages take one `now` on the server and pass it down, so both renders
+ * see the same instant. See `app/home/page.tsx`.
+ *
  * Timestamps cross the data seam as ISO strings and are formatted only here.
  * Calendar dates (`YYYY-MM-DD`) are the one exception: they are already a day
  * in this zone, so the helpers for them do plain date arithmetic in UTC, where
@@ -116,12 +123,12 @@ export function circleDate(instant: Instant): IsoDate {
 }
 
 /** Today, in the circle's zone. */
-export function circleToday(now: Instant = new Date()): IsoDate {
+export function circleToday(now: Instant): IsoDate {
   return circleDate(now);
 }
 
 /** The hour (0–23) in the circle's zone, for the greeting. */
-export function circleHour(now: Instant = new Date()): number {
+export function circleHour(now: Instant): number {
   return circleParts(now).hour;
 }
 
@@ -174,10 +181,7 @@ export function formatTime(instant: Instant): string {
  * week, and a date beyond that. Messages sharing a label share a divider, so
  * older history gets real dates rather than collapsing under one "Last week".
  */
-export function formatDayLabel(
-  instant: Instant,
-  now: Instant = new Date(),
-): string {
+export function formatDayLabel(instant: Instant, now: Instant): string {
   const today = circleToday(now);
   const date = circleDate(instant);
   const ago = daysBetween(date, today);
@@ -198,11 +202,11 @@ function plural(n: number, unit: string): string {
  * Minutes and hours are elapsed time; days are calendar days in the circle's
  * zone, so something from last night reads "1 day ago" the next morning even
  * if fewer than 24 hours have passed — and a 25-hour DST day is still one day.
+ *
+ * Anything at or after `now` is "just now". That covers a share made in the
+ * browser after the page's `now` was taken, and a browser clock running ahead.
  */
-export function formatRelative(
-  instant: Instant,
-  now: Instant = new Date(),
-): string {
+export function formatRelative(instant: Instant, now: Instant): string {
   const elapsed = toDate(now).getTime() - toDate(instant).getTime();
   if (elapsed < MINUTE) return "just now";
   if (elapsed < HOUR) return plural(Math.floor(elapsed / MINUTE), "minute");

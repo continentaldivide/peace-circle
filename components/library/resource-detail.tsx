@@ -19,6 +19,7 @@ export function ResourceDetail({
   open,
   resource,
   user,
+  now,
   lookup,
   onClose,
   onAddComment,
@@ -26,6 +27,7 @@ export function ResourceDetail({
   open: boolean;
   resource: Resource | null;
   user: Member;
+  now: string;
   lookup: (authorId: string) => AuthorInfo;
   onClose: () => void;
   onAddComment: (resourceId: string, body: string) => void;
@@ -62,6 +64,7 @@ export function ResourceDetail({
                 <CardMeta
                   author={lookup(shown.authorId)}
                   createdAt={shown.createdAt}
+                  now={now}
                 />
               </div>
             </div>
@@ -89,7 +92,7 @@ export function ResourceDetail({
                             {a.name}
                           </span>
                           <span className="font-body text-[12px] text-faint">
-                            {formatRelative(c.createdAt)}
+                            {formatRelative(c.createdAt, now)}
                           </span>
                         </p>
                         <p className="mt-0.5 font-body text-[14px] leading-[1.5] text-ink-soft">

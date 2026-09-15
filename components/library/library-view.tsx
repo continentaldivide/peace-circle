@@ -16,10 +16,13 @@ type Filter = ResourceKind | "all";
 
 export function LibraryView({
   user,
+  now,
   initialResources,
   members,
 }: {
   user: Member;
+  /** ISO instant the page was rendered at; see `lib/time.ts`. */
+  now: string;
   initialResources: Resource[];
   members: Member[];
 }) {
@@ -133,6 +136,7 @@ export function LibraryView({
                 key={r.id}
                 r={r}
                 author={lookup(r.authorId)}
+                now={now}
                 onOpen={setOpenId}
               />
             ))}
@@ -144,6 +148,7 @@ export function LibraryView({
         open={openId !== null}
         resource={openRes}
         user={user}
+        now={now}
         lookup={lookup}
         onClose={() => setOpenId(null)}
         onAddComment={addComment}

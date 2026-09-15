@@ -80,12 +80,15 @@ export function CircleChat({
   initialPage,
   loadOlder,
   user,
+  now,
   lookup,
   className,
 }: {
   initialPage: MessagePage;
   loadOlder: (cursor: string) => Promise<MessagePage>;
   user: Member;
+  /** The page's render instant, for "Today" and "Yesterday". */
+  now: string;
   lookup: (id: string) => AuthorInfo;
   className?: string;
 }) {
@@ -199,7 +202,7 @@ export function CircleChat({
             {i === 0 ||
             circleDate(messages[i - 1].createdAt) !==
               circleDate(m.createdAt) ? (
-              <DayDivider label={formatDayLabel(m.createdAt)} />
+              <DayDivider label={formatDayLabel(m.createdAt, now)} />
             ) : null}
             <Bubble
               message={m}
