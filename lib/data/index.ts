@@ -35,12 +35,16 @@ const MESSAGES_PAGE_SIZE = 15;
 
 /**
  * The single data-access seam. Every page reads through these functions and
- * never touches the data source directly. In the prototype they return mock
- * data; in Phase 2 only their bodies change to call Supabase — the calling
- * components stay identical. Signatures are async to match that future.
+ * never touches the data source directly; components see the shapes in
+ * `types.ts`, never a table's columns.
  *
- * Note: prototype *mutations* (new resources/comments) live in client state
- * seeded from these reads; Phase 2 replaces those with server writes.
+ * Each function calls `requireApproved()` before it queries. The database is
+ * the real gate — RLS returns nothing to anyone else — but a forgotten check
+ * should be a redirect to /signin or /pending, not a page that is quietly
+ * empty. The check is `cache()`d, so the repeats within a render are free.
+ *
+ * Reads only. New shares, comments, and chat messages still live in client
+ * state seeded from these reads until Step 5 adds the server writes.
  */
 
 /**
@@ -65,10 +69,6 @@ export async function getResources(): Promise<Resource[]> {
 
   if (error) throw new Error(`Could not read resources: ${error.message}`);
   return data.map(toResource);
-}
-
-export async function getResource(id: string): Promise<Resource | null> {
-  return (await getResources()).find((r) => r.id === id) ?? null;
 }
 
 /**
