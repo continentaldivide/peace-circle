@@ -11,15 +11,10 @@ import {
 import { Avatar } from "@/components/avatar";
 import type { AuthorInfo } from "@/components/library/kinds";
 import type { Member, Message, MessagePage } from "@/lib/data";
+import { formatTime } from "@/lib/time";
 
 /** Fixed height of the chat card, so new messages scroll rather than grow it. */
 const CHAT_HEIGHT = "h-[750px]";
-
-function nowLabel(): string {
-  return new Date()
-    .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    .toUpperCase();
-}
 
 function DayDivider({ label }: { label: string }) {
   return (
@@ -165,7 +160,7 @@ export function CircleChat({
         id: "msg" + Date.now(),
         authorId: "you",
         day: "Today",
-        when: nowLabel(),
+        when: formatTime(new Date()),
         body,
       },
     ]);

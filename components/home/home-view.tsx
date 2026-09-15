@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { CircleChat } from "@/components/home/circle-chat";
-import { MONTHS_SHORT, parseDate, startOfToday } from "@/components/home/dates";
 import { MonthCalendar } from "@/components/home/month-calendar";
 import { Composer } from "@/components/library/composer";
 import type { AuthorInfo } from "@/components/library/kinds";
@@ -14,6 +13,14 @@ import { MemberNav } from "@/components/member-nav";
 import { Button } from "@/components/ui/button";
 import { loadOlderMessages } from "@/app/actions/messages";
 import type { CircleEvent, Member, MessagePage, Resource } from "@/lib/data";
+import {
+  MONTHS_SHORT,
+  circleHour,
+  circleToday,
+  daysBetween,
+  parseIsoDate,
+  weekdayName,
+} from "@/lib/time";
 
 const NUMBER_WORDS = [
   "No",
@@ -85,14 +92,15 @@ export function HomeView({
       };
   }, [members, user]);
 
+  // "Today" is the circle's today, not the browser's: the server renders this
+  // too, and an event must not land on a different day for a member elsewhere.
+  const today = circleToday();
+
   const upcoming = useMemo(() => {
-    const today = startOfToday();
-    const dated = events
-      .map((e) => ({ event: e, date: parseDate(e.date) }))
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
-    const ahead = dated.filter((e) => e.date >= today);
-    return (ahead.length ? ahead : dated).slice(0, 3);
-  }, [events]);
+    const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+    const ahead = sorted.filter((e) => e.date >= today);
+    return (ahead.length ? ahead : sorted).slice(0, 3);
+  }, [events, today]);
 
   const recent = resources.slice(0, RECENT_COUNT);
   const openRes = resources.find((r) => r.id === openId) ?? null;
@@ -100,7 +108,7 @@ export function HomeView({
   const next = upcoming[0];
 
   const greeting = (() => {
-    const h = new Date().getHours();
+    const h = circleHour();
     if (h < 12) return "Good morning";
     if (h < 18) return "Good afternoon";
     return "Good evening";
@@ -111,12 +119,10 @@ export function HomeView({
     const count = NUMBER_WORDS[n] ?? String(n);
     const shares = `${count} new ${n === 1 ? "share" : "shares"} since you last visited`;
     if (!next) return `${shares}.`;
-    const days = Math.round(
-      (next.date.getTime() - startOfToday().getTime()) / 86_400_000,
-    );
+    const days = daysBetween(today, next.date);
     const when =
       days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
-    const weekday = next.date.toLocaleDateString([], { weekday: "long" });
+    const weekday = weekdayName(next.date);
     return `${shares}, and ${weekday}'s circle is ${when}.`;
   })();
 
@@ -181,17 +187,17 @@ export function HomeView({
             <section>
               <SectionHeader title="Upcoming" />
               <div className="rounded-card border border-line bg-surface px-[18px] shadow-[var(--cardshadow)]">
-                {upcoming.map(({ event, date }) => (
+                {upcoming.map((event) => (
                   <div
                     key={event.id}
                     className="flex w-full items-center gap-4 border-t border-line py-3 text-left first:border-t-0"
                   >
                     <div className="w-12 flex-none text-center">
                       <div className="font-mono text-[10px] font-bold uppercase text-accent">
-                        {MONTHS_SHORT[date.getMonth()]}
+                        {MONTHS_SHORT[parseIsoDate(event.date).month]}
                       </div>
                       <div className="font-display text-[23px] font-semibold leading-none text-ink">
-                        {date.getDate()}
+                        {parseIsoDate(event.date).day}
                       </div>
                     </div>
                     <div className="min-w-0 flex-1">
