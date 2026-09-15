@@ -50,7 +50,7 @@ export function ResourceCard({
       <KindTag kind={r.kind} />
       <ResourceBody r={r} />
       <div className="mt-3 flex items-center justify-between border-t border-line pt-[11px]">
-        <CardMeta author={author} when={r.when} />
+        <CardMeta author={author} createdAt={r.createdAt} />
         <CommentPip n={r.comments.length} />
       </div>
     </article>

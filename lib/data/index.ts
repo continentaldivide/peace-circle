@@ -1,12 +1,8 @@
 import "server-only";
 
 import { requireApproved } from "@/lib/dal";
-import {
-  MOCK_CIRCLE_EVENTS,
-  MOCK_MESSAGES,
-  MOCK_RESOURCES,
-} from "@/lib/data/mock";
-import { toMember } from "@/lib/data/rows";
+import { MOCK_CIRCLE_EVENTS, MOCK_MESSAGES } from "@/lib/data/mock";
+import { toMember, toResource } from "@/lib/data/rows";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CircleEvent,
@@ -42,12 +38,32 @@ const MESSAGES_PAGE_SIZE = 15;
  * seeded from these reads; Phase 2 replaces those with server writes.
  */
 
+/**
+ * The Library, newest first, each share with its comments oldest first.
+ *
+ * One query: comments come embedded through their foreign key rather than as
+ * a request per share. `id` breaks ties so two rows written in the same
+ * instant keep a stable order between renders.
+ */
 export async function getResources(): Promise<Resource[]> {
-  return MOCK_RESOURCES;
+  await requireApproved();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("resources")
+    .select(
+      "id, author_id, kind, title, body, quote, attribution, url, book_author, created_at, comments (id, author_id, body, created_at)",
+    )
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .order("created_at", { referencedTable: "comments", ascending: true })
+    .order("id", { referencedTable: "comments", ascending: true });
+
+  if (error) throw new Error(`Could not read resources: ${error.message}`);
+  return data.map(toResource);
 }
 
 export async function getResource(id: string): Promise<Resource | null> {
-  return MOCK_RESOURCES.find((r) => r.id === id) ?? null;
+  return (await getResources()).find((r) => r.id === id) ?? null;
 }
 
 /**

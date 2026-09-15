@@ -1,77 +1,11 @@
-import type { CircleEvent, Message, Resource } from "@/lib/data/types";
+import type { CircleEvent, Message } from "@/lib/data/types";
 
 // Throwaway seed for the prototype, using the handoff's walking-free content
 // model. Phase 2 deletes this file once the accessors in `index.ts` read from
 // Supabase. (Copy rule: the group gathers / sits in stillness — it never walks.)
 //
-// Members now come from `profiles`, so author ids here are the seeded
+// Members and resources now come from Supabase, so author ids here are the seeded
 // profiles' ids (supabase/seed.sql) until each of these moves off mock too.
-
-export const MOCK_RESOURCES: Resource[] = [
-  {
-    id: "r1",
-    kind: "quote",
-    authorId: "11111111-1111-1111-1111-111111111111",
-    when: "2 days ago",
-    quote: "Nothing can bring you peace but yourself.",
-    attribution: "— Ralph Waldo Emerson",
-    note: "Read at last month's circle. It stayed with me all week.",
-    comments: [
-      {
-        id: "c1",
-        authorId: "22222222-2222-2222-2222-222222222222",
-        when: "2 days ago",
-        body: "I keep coming back to this one. Thank you for sharing, Lisa.",
-      },
-      {
-        id: "c2",
-        authorId: "33333333-3333-3333-3333-333333333333",
-        when: "1 day ago",
-        body: "Going to write it on a card for my desk.",
-      },
-    ],
-  },
-  {
-    id: "r3",
-    kind: "book",
-    authorId: "33333333-3333-3333-3333-333333333333",
-    when: "1 week ago",
-    title: "Wherever You Go, There You Are",
-    bookAuthor: "Jon Kabat-Zinn",
-    body: "On simply being present. A gentle place to begin.",
-    comments: [],
-  },
-  {
-    id: "r4",
-    kind: "quote",
-    authorId: "22222222-2222-2222-2222-222222222222",
-    when: "1 week ago",
-    quote:
-      "Within you there is a stillness and a sanctuary to which you can retreat at any time.",
-    attribution: "— Hermann Hesse",
-    comments: [],
-  },
-  {
-    id: "r5",
-    kind: "link",
-    authorId: "55555555-5555-5555-5555-555555555555",
-    when: "1 week ago",
-    title: "A short guide to sitting in silence",
-    url: "plumvillage.org",
-    body: "Plain, practical, non-religious. Good to hand to someone new.",
-    comments: [],
-  },
-  {
-    id: "r6",
-    kind: "picture",
-    authorId: "44444444-4444-4444-4444-444444444444",
-    when: "2 weeks ago",
-    title: "Candles after the April circle",
-    caption: "We sat with these until the last person was ready to leave.",
-    placeholder: "photo — candles on the windowsill",
-    comments: [],
-  },
-];
 
 // The Circle group chat, oldest first. "you" renders as the signed-in member.
 // Deliberately long so the Home chat's scroll-up paging is exercisable.

@@ -83,7 +83,7 @@ export function LibraryView({
                 {
                   id: "c" + Date.now(),
                   authorId: "you",
-                  when: "just now",
+                  createdAt: new Date().toISOString(),
                   body,
                 },
               ],

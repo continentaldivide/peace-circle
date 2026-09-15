@@ -1,4 +1,4 @@
-import type { Member } from "@/lib/data/types";
+import type { Comment, Member, Resource } from "@/lib/data/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { initialsFor } from "@/lib/utils";
 
@@ -28,4 +28,94 @@ export function toMember(
     initials: initialsFor(row.name),
     tint: row.avatar_tint ?? DEFAULT_TINT,
   };
+}
+
+export type ResourceRow = Pick<
+  Tables["resources"]["Row"],
+  | "id"
+  | "author_id"
+  | "kind"
+  | "title"
+  | "body"
+  | "quote"
+  | "attribution"
+  | "url"
+  | "book_author"
+  | "created_at"
+> & {
+  comments: Pick<
+    Tables["comments"]["Row"],
+    "id" | "author_id" | "body" | "created_at"
+  >[];
+};
+
+/**
+ * A column the `resources_kind_shape` check guarantees for this kind. The
+ * generated types cannot know that, so a null here means the constraint and
+ * this code disagree — worth failing loudly over, not rendering as a blank.
+ */
+function required<T>(value: T | null, column: string, row: ResourceRow): T {
+  if (value === null) {
+    throw new Error(`${row.kind} ${row.id} has no ${column}`);
+  }
+  return value;
+}
+
+/**
+ * The four kinds share one table. Each kind's free text lives in `body`: a
+ * quote's note, a link's or book's description, a picture's caption.
+ */
+export function toResource(row: ResourceRow): Resource {
+  const base = {
+    id: row.id,
+    authorId: row.author_id,
+    createdAt: row.created_at,
+    comments: row.comments.map((c): Comment => ({
+      id: c.id,
+      authorId: c.author_id,
+      createdAt: c.created_at,
+      body: c.body,
+    })),
+  };
+  const body = row.body ?? undefined;
+
+  switch (row.kind) {
+    case "quote":
+      return {
+        ...base,
+        kind: "quote",
+        quote: required(row.quote, "quote", row),
+        // Stored with its leading "— ", so it renders as written.
+        attribution: row.attribution ?? "",
+        note: body,
+      };
+    case "link":
+      return {
+        ...base,
+        kind: "link",
+        title: required(row.title, "title", row),
+        url: required(row.url, "url", row),
+        body,
+      };
+    case "picture": {
+      const title = required(row.title, "title", row);
+      return {
+        ...base,
+        kind: "picture",
+        title,
+        caption: body,
+        // No image column is read yet (Step 6), so the placeholder says what
+        // the picture is, the way the composer does for a new one.
+        placeholder: `photo — ${title.toLowerCase()}`,
+      };
+    }
+    case "book":
+      return {
+        ...base,
+        kind: "book",
+        title: required(row.title, "title", row),
+        bookAuthor: required(row.book_author, "book_author", row),
+        body,
+      };
+  }
 }

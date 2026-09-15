@@ -1,6 +1,10 @@
 // Shapes mirror the design handoff's resource model. UI components depend only
 // on these types and the accessor functions in `index.ts` — never on where the
-// data comes from. Phase 2 backs the same functions with Supabase queries.
+// data comes from.
+//
+// Timestamps cross this boundary as ISO strings, never as display labels and
+// never as Dates (which do not survive the trip to a client component intact).
+// Components format them with `lib/time.ts`, in the circle's timezone.
 
 export type Member = {
   id: string;
@@ -14,14 +18,17 @@ export type Member = {
 export type Comment = {
   id: string;
   authorId: string;
-  when: string; // relative label in the prototype; a timestamp in Phase 2
+  /** ISO timestamp. */
+  createdAt: string;
   body: string;
 };
 
 type ResourceBase = {
   id: string;
   authorId: string;
-  when: string;
+  /** ISO timestamp. */
+  createdAt: string;
+  /** Oldest first. */
   comments: Comment[];
 };
 
@@ -43,7 +50,10 @@ export type PictureResource = ResourceBase & {
   kind: "picture";
   title: string;
   caption?: string;
-  /** Caption shown inside the striped placeholder (no real images yet). */
+  /**
+   * Caption shown inside the striped placeholder. There is no column for it:
+   * real images are Step 6, and until then it is derived from the title.
+   */
   placeholder: string;
 };
 

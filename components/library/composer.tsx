@@ -53,7 +53,7 @@ export function Composer({
     const base = {
       id: "r" + Date.now(),
       authorId: "you",
-      when: "just now",
+      createdAt: new Date().toISOString(),
       comments: [] as Comment[],
     };
 
