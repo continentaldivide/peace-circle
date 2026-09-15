@@ -21,22 +21,14 @@ function isEmail(v: string) {
  * and then lands on /pending. Not gating on account existence also avoids
  * telling an unknown visitor whether an address belongs to a member.
  */
-export function AuthFlow({
-  mode,
-  initialError,
-}: {
-  mode: "join" | "signin";
-  initialError?: string;
-}) {
+export function AuthFlow({ initialError }: { initialError?: string }) {
   const [step, setStep] = useState<"request" | "sent">("request");
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(initialError ?? null);
 
-  const joining = mode === "join";
-  const valid = isEmail(email) && (!joining || name.trim().length > 1);
+  const valid = isEmail(email);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,7 +45,6 @@ export function AuthFlow({
         // Must be on the project's redirect allow list, or Supabase falls back
         // to the Site URL and the code never reaches our callback.
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: joining ? { name: name.trim() } : undefined,
       },
     });
 
@@ -95,34 +86,13 @@ export function AuthFlow({
               </div>
               <div>
                 <h1 className="font-display text-[28px] font-semibold leading-tight text-ink">
-                  {joining ? "Join the circle" : "Welcome back"}
+                  Welcome back
                 </h1>
                 <p className="mt-2 font-body text-[15px] leading-relaxed text-ink-soft">
-                  {joining
-                    ? "No password to remember. Enter your details and we'll send a sign-in link to your email."
-                    : "No password needed. Enter your email and we'll send you a one-time sign-in link."}
+                  No password needed. Enter your email and we&rsquo;ll send you
+                  a one-time sign-in link.
                 </p>
               </div>
-
-              {joining ? (
-                <Field
-                  label="Your name"
-                  error={
-                    touched && name.trim().length <= 1
-                      ? "Please add your name so the circle knows you."
-                      : undefined
-                  }
-                >
-                  <input
-                    type="text"
-                    value={name}
-                    autoComplete="name"
-                    placeholder="e.g. Lisa Morrow"
-                    className={inputClass}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </Field>
-              ) : null}
 
               <Field
                 label="Email address"
@@ -153,29 +123,14 @@ export function AuthFlow({
               ) : null}
 
               <Button type="submit" block disabled={sending}>
-                {sending
-                  ? "Sending…"
-                  : joining
-                    ? "Send my sign-in link"
-                    : "Send sign-in link"}
+                {sending ? "Sending…" : "Send sign-in link"}
               </Button>
 
               <p className="text-center font-body text-[14px] text-ink-soft">
-                {joining ? (
-                  <>
-                    Already a member?{" "}
-                    <Link href="/signin" className="font-medium text-accent">
-                      Sign in instead
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    New here?{" "}
-                    <Link href="/join" className="font-medium text-accent">
-                      Join the circle
-                    </Link>
-                  </>
-                )}
+                New here?{" "}
+                <Link href="/join" className="font-medium text-accent">
+                  Tell us about yourself
+                </Link>
               </p>
             </form>
           ) : (

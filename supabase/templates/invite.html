@@ -1,0 +1,34 @@
+<!--
+  The invite email, local stack only.
+
+  Its one job in Step 3 is the shape of the link. Supabase's default invite
+  template points at the auth server's own /auth/v1/verify, which resolves an
+  invite into an implicit-flow redirect — tokens in the URL fragment, which a
+  server never receives. Sending the token hash to our own /auth/confirm route
+  instead is what lets the session be written as a cookie.
+
+  Step 7 replaces the words and the styling with the branded Resend template
+  PLAN.md describes. Until then this is plain on purpose.
+
+  THE HOSTED PROJECT NEEDS THE SAME LINK. config.toml describes the local
+  stack and is never pushed, so the template in the Supabase dashboard has to
+  be edited by hand to match, or invites will arrive pointing at a URL this app
+  cannot complete.
+-->
+<h2>You&rsquo;ve been invited to the Peace Circle</h2>
+
+<p>
+  Someone from the circle has opened a place for you. Follow the link below and
+  we&rsquo;ll finish setting you up — there is no password to choose.
+</p>
+
+<p>
+  <a
+    href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite&amp;next=%2Fwelcome"
+    >Step into the circle</a
+  >
+</p>
+
+<p>
+  If you weren&rsquo;t expecting this, you can ignore it and nothing happens.
+</p>

@@ -6,6 +6,7 @@ import { cache } from "react";
 import type { Member } from "@/lib/data";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { initialsFor } from "@/lib/utils";
 
 /**
  * The Data Access Layer — the server-side half of the access gate.
@@ -136,13 +137,6 @@ export const getSignedInMember = cache(async (): Promise<Member> => {
     tint: profile.avatar_tint ?? "var(--ink-soft)",
   };
 });
-
-function initialsFor(name: string): string {
-  const parts = name.split(/\s+/).filter(Boolean);
-  const first = (parts[0] || "Y")[0];
-  const second = parts[1] ? parts[1][0] : "";
-  return (first + second).toUpperCase();
-}
 
 /** For admin-only surfaces (the inquiry queue, moderation, event management). */
 export const requireAdmin = cache(

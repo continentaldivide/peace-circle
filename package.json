@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "types": "{ echo '// GENERATED FILE — DO NOT EDIT BY HAND. Run `npm run types` to regenerate.'; echo '// Reads the local database, not the migration files — apply migrations first.'; echo; supabase gen types typescript --local; } > lib/supabase/database.types.ts"
+    "types": "{ echo '// GENERATED FILE — DO NOT EDIT BY HAND. Run `npm run types` to regenerate.'; echo '// Reads the local database, not the migration files — apply migrations first.'; echo; supabase gen types typescript --local; } > lib/supabase/database.types.ts",
+    "email:check": "node --env-file=.env.local scripts/check-email.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
@@ -17,17 +19,19 @@
     "next": "16.2.7",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "resend": "^6.25.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.0"
   }
 }

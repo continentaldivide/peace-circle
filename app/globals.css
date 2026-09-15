@@ -16,6 +16,13 @@
   --accent: #6b7355;
   --accent-ink: #fbf9f3;
   --accent-soft: rgba(107, 115, 85, 0.13);
+  /* Warning. A muted terracotta rather than a signal red, so it reads as part
+     of the same warm palette while staying clearly distinct from the sage
+     accent — which is the whole point, since the accent means "act on this"
+     and this means "something is wrong". 5.25:1 on --bg, so it clears AA for
+     body text. */
+  --warn: #a34a32;
+  --warn-soft: rgba(163, 74, 50, 0.12);
   --radius: 16px;
   --btnr: 10px;
   --chipr: 999px;
@@ -42,6 +49,8 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
 
   --font-display: var(--fdisp);
   --font-body: var(--fbody);

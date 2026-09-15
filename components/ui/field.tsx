@@ -21,7 +21,7 @@ export function Field({
       </span>
       {children}
       {error ? (
-        <em className="mt-1 block font-body text-[12.5px] not-italic text-accent">
+        <em className="mt-1 block font-body text-[12.5px] not-italic text-warn">
           {error}
         </em>
       ) : null}
