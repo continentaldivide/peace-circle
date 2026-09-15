@@ -1,8 +1,9 @@
 import "server-only";
 
 import { requireApproved } from "@/lib/dal";
-import { MOCK_CIRCLE_EVENTS, MOCK_MESSAGES } from "@/lib/data/mock";
-import { toMember, toResource } from "@/lib/data/rows";
+import { decodeCursor, encodeCursor, olderThanFilter } from "@/lib/data/cursor";
+import { MOCK_CIRCLE_EVENTS } from "@/lib/data/mock";
+import { toMember, toMessage, toResource } from "@/lib/data/rows";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CircleEvent,
@@ -90,28 +91,45 @@ export async function getMembers(): Promise<Member[]> {
  * returns the `limit` messages immediately older than it. Messages within a
  * page are chronological (oldest→newest).
  *
- * Phase 2 swaps this body for a Supabase query: `before` becomes a `created_at`
- * timestamp and this turns into `.lt("created_at", before).order(...).limit()`.
- * In the prototype the cursor is simply a message id.
+ * Pages by `(created_at, id)`, not by timestamp alone — see `cursor.ts` for
+ * why. Reads one row past the limit to learn whether older history exists
+ * without a second query.
  */
 export async function getMessages(opts?: {
   before?: string;
   limit?: number;
 }): Promise<MessagePage> {
+  await requireApproved();
   const limit = opts?.limit ?? MESSAGES_PAGE_SIZE;
-  // MOCK_MESSAGES is oldest→newest; the cursor marks the oldest message the
-  // caller already has, so we take the window ending just before it.
-  const end =
-    opts?.before === undefined
-      ? MOCK_MESSAGES.length
-      : MOCK_MESSAGES.findIndex((m) => m.id === opts.before);
-  const sliceEnd = end === -1 ? MOCK_MESSAGES.length : end;
-  const start = Math.max(0, sliceEnd - limit);
-  const messages = MOCK_MESSAGES.slice(start, sliceEnd);
+
+  const supabase = await createClient();
+  let query = supabase
+    .from("messages")
+    .select("id, author_id, body, created_at")
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit + 1);
+
+  if (opts?.before !== undefined) {
+    const cursor = decodeCursor(opts.before);
+    // The cursor came back from a browser. One this app did not make is a
+    // bad request, not an empty page.
+    if (!cursor) throw new Error("Invalid message cursor");
+    query = query.or(olderThanFilter(cursor));
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(`Could not read messages: ${error.message}`);
+
+  const hasMore = data.length > limit;
+  const messages = data.slice(0, limit).reverse().map(toMessage);
+  const oldest = messages[0];
   return {
     messages,
-    hasMore: start > 0,
-    nextCursor: messages.length ? messages[0].id : null,
+    hasMore,
+    nextCursor: oldest
+      ? encodeCursor({ createdAt: oldest.createdAt, id: oldest.id })
+      : null,
   };
 }
 

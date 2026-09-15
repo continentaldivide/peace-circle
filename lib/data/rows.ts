@@ -1,4 +1,4 @@
-import type { Comment, Member, Resource } from "@/lib/data/types";
+import type { Comment, Member, Message, Resource } from "@/lib/data/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { initialsFor } from "@/lib/utils";
 
@@ -118,4 +118,18 @@ export function toResource(row: ResourceRow): Resource {
         body,
       };
   }
+}
+
+export type MessageRow = Pick<
+  Tables["messages"]["Row"],
+  "id" | "author_id" | "body" | "created_at"
+>;
+
+export function toMessage(row: MessageRow): Message {
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    createdAt: row.created_at,
+    body: row.body,
+  };
 }

@@ -74,10 +74,8 @@ export type Message = {
   id: string;
   /** Member id, or "you" for the signed-in member. */
   authorId: string;
-  /** Day-divider label in the prototype (e.g. "Yesterday"); a date in Phase 2. */
-  day: string;
-  /** Time-of-day label (e.g. "4:12 PM"); a timestamp in Phase 2. */
-  when: string;
+  /** ISO timestamp. The day divider and time label are both formatted from it. */
+  createdAt: string;
   body: string;
 };
 
@@ -91,7 +89,10 @@ export type MessagePage = {
   messages: Message[];
   /** Are there older messages before this batch? */
   hasMore: boolean;
-  /** Cursor for the batch *older* than this one; null when at the start. */
+  /**
+   * Cursor for the batch *older* than this one; null when at the start.
+   * Opaque to components: pass it back to `loadOlderMessages` unchanged.
+   */
   nextCursor: string | null;
 };
 

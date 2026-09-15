@@ -11,7 +11,7 @@ import {
 import { Avatar } from "@/components/avatar";
 import type { AuthorInfo } from "@/components/library/kinds";
 import type { Member, Message, MessagePage } from "@/lib/data";
-import { formatTime } from "@/lib/time";
+import { circleDate, formatDayLabel, formatTime } from "@/lib/time";
 
 /** Fixed height of the chat card, so new messages scroll rather than grow it. */
 const CHAT_HEIGHT = "h-[750px]";
@@ -43,7 +43,7 @@ function Bubble({ message, author }: { message: Message; author: AuthorInfo }) {
         >
           {author.name}
           <span className="text-[11.5px] font-normal text-faint">
-            {message.when}
+            {formatTime(message.createdAt)}
           </span>
         </span>
         <span
@@ -159,8 +159,7 @@ export function CircleChat({
       {
         id: "msg" + Date.now(),
         authorId: "you",
-        day: "Today",
-        when: formatTime(new Date()),
+        createdAt: new Date().toISOString(),
         body,
       },
     ]);
@@ -189,8 +188,10 @@ export function CircleChat({
         )}
         {messages.map((m, i) => (
           <div key={m.id} className="flex flex-col gap-[15px]">
-            {i === 0 || messages[i - 1].day !== m.day ? (
-              <DayDivider label={m.day} />
+            {i === 0 ||
+            circleDate(messages[i - 1].createdAt) !==
+              circleDate(m.createdAt) ? (
+              <DayDivider label={formatDayLabel(m.createdAt)} />
             ) : null}
             <Bubble message={m} author={lookup(m.authorId)} />
           </div>
