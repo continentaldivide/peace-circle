@@ -179,22 +179,11 @@ export function HomeView({
               <MonthCalendar events={events} />
             </section>
             <section>
-              <SectionHeader
-                title="Upcoming"
-                more={
-                  <Link
-                    href="/meetings"
-                    className="font-body text-[13px] font-medium text-ink-soft transition-colors hover:text-ink"
-                  >
-                    All →
-                  </Link>
-                }
-              />
+              <SectionHeader title="Upcoming" />
               <div className="rounded-card border border-line bg-surface px-[18px] shadow-[var(--cardshadow)]">
                 {upcoming.map(({ event, date }) => (
-                  <Link
+                  <div
                     key={event.id}
-                    href="/meetings"
                     className="flex w-full items-center gap-4 border-t border-line py-3 text-left first:border-t-0"
                   >
                     <div className="w-12 flex-none text-center">
@@ -216,7 +205,7 @@ export function HomeView({
                     <span className="whitespace-nowrap font-body text-[12.5px] text-ink-soft">
                       {event.time}
                     </span>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </section>

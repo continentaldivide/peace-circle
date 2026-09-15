@@ -59,28 +59,6 @@ export type Resource =
 
 export type ResourceKind = Resource["kind"];
 
-/** The "what to expect" detail for the next gathering. */
-export type NextMeeting = {
-  tag: string;
-  date: string;
-  location: string;
-  expect: string[];
-  goodToKnow: {
-    address: string;
-    parking: string;
-    welcome: string;
-  };
-};
-
-export type Meeting = {
-  id: string;
-  month: string;
-  day: string;
-  title: string;
-  note: string;
-  time: string;
-};
-
 /** A message in The Circle group chat. */
 export type Message = {
   id: string;
@@ -109,8 +87,7 @@ export type MessagePage = {
 
 /**
  * A scheduled circle gathering with a machine-readable date, so the member
- * Home can render a real month calendar. Mirrors the Meetings seed; Phase 2
- * backs both from the same Supabase table.
+ * Home can render a real month calendar and its Upcoming list.
  */
 export type CircleEvent = {
   id: string;

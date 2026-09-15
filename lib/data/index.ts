@@ -2,16 +2,12 @@ import {
   MOCK_CIRCLE_EVENTS,
   MOCK_MEMBERS,
   MOCK_MESSAGES,
-  MOCK_NEXT_MEETING,
   MOCK_RESOURCES,
-  MOCK_UPCOMING_MEETINGS,
 } from "@/lib/data/mock";
 import type {
   CircleEvent,
-  Meeting,
   Member,
   MessagePage,
-  NextMeeting,
   Resource,
 } from "@/lib/data/types";
 
@@ -20,11 +16,9 @@ export type {
   CircleEvent,
   Comment,
   LinkResource,
-  Meeting,
   Member,
   Message,
   MessagePage,
-  NextMeeting,
   PictureResource,
   QuoteResource,
   Resource,
@@ -58,14 +52,6 @@ export async function getMembers(): Promise<Member[]> {
 
 export async function getMember(id: string): Promise<Member | null> {
   return MOCK_MEMBERS.find((m) => m.id === id) ?? null;
-}
-
-export async function getNextMeeting(): Promise<NextMeeting> {
-  return MOCK_NEXT_MEETING;
-}
-
-export async function getUpcomingMeetings(): Promise<Meeting[]> {
-  return MOCK_UPCOMING_MEETINGS;
 }
 
 /**

@@ -1,11 +1,4 @@
-import type {
-  CircleEvent,
-  Meeting,
-  Member,
-  Message,
-  NextMeeting,
-  Resource,
-} from "@/lib/data/types";
+import type { CircleEvent, Member, Message, Resource } from "@/lib/data/types";
 
 // Throwaway seed for the prototype, using the handoff's walking-free content
 // model. Phase 2 deletes this file once the accessors in `index.ts` read from
@@ -114,24 +107,6 @@ export const MOCK_RESOURCES: Resource[] = [
     comments: [],
   },
 ];
-
-export const MOCK_NEXT_MEETING: NextMeeting = {
-  tag: "Next gathering",
-  date: "Sunday, June 21",
-  location: "Fellowship Hall, Grace United Church · 4:00–5:30 PM",
-  expect: [
-    "Doors open at 3:45. Come in, find a seat, and settle.",
-    "We begin with twenty minutes of shared silence — no experience needed.",
-    "Someone offers a short reading or reflection to sit with.",
-    "We close with tea and conversation. Leave whenever you need to.",
-  ],
-  goodToKnow: {
-    address: "142 Linden Ave",
-    parking:
-      "Street parking on Linden and Cedar. Enter through the garden door at the side of the hall.",
-    welcome: "Newcomers always welcome — just come as you are.",
-  },
-};
 
 // The Circle group chat, oldest first. "you" renders as the signed-in member.
 // Deliberately long so the Home chat's scroll-up paging is exercisable.
@@ -448,40 +423,5 @@ export const MOCK_CIRCLE_EVENTS: CircleEvent[] = [
     note: "Bring a reading to share",
     date: "2026-10-18",
     time: "4:00 PM",
-  },
-];
-
-export const MOCK_UPCOMING_MEETINGS: Meeting[] = [
-  {
-    id: "m-jul",
-    month: "Jul",
-    day: "19",
-    title: "July Circle",
-    note: "An ordinary hour of quiet",
-    time: "4:00–5:30 PM",
-  },
-  {
-    id: "m-aug",
-    month: "Aug",
-    day: "16",
-    title: "August Circle — evening sitting",
-    note: "Meeting later for the cooler hour",
-    time: "6:30–8:00 PM",
-  },
-  {
-    id: "m-sep",
-    month: "Sep",
-    day: "20",
-    title: "September Circle",
-    note: "Welcome tea for newcomers",
-    time: "4:00–5:30 PM",
-  },
-  {
-    id: "m-oct",
-    month: "Oct",
-    day: "18",
-    title: "October Circle",
-    note: "Bring a reading to share",
-    time: "4:00–5:30 PM",
   },
 ];

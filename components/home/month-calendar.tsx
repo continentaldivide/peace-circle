@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import {
@@ -49,8 +48,6 @@ function buildCells(year: number, month: number): Cell[] {
 const MO = "font-display text-[17px] font-semibold text-ink";
 
 export function MonthCalendar({ events }: { events: CircleEvent[] }) {
-  const router = useRouter();
-
   const today = startOfToday();
   const dated = events.map((e) => ({ event: e, date: parseDate(e.date) }));
   const next = dated.find((e) => e.date >= today) ?? dated[0];
@@ -106,16 +103,17 @@ export function MonthCalendar({ events }: { events: CircleEvent[] }) {
           const base =
             "grid aspect-square place-items-center rounded-btn font-body text-[13px]";
           if (event) {
+            // Not a button: there is nowhere to go. The label still tells a
+            // screen reader which gathering the highlight marks.
             return (
-              <button
+              <div
                 key={i}
-                type="button"
+                role="img"
                 aria-label={`${event.title} on ${MONTHS_SHORT[c.date.getMonth()]} ${c.day}`}
-                onClick={() => router.push("/meetings")}
                 className={`${base} bg-accent font-bold text-accent-ink`}
               >
                 {c.day}
-              </button>
+              </div>
             );
           }
           return (

@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { cn } from "@/lib/utils";
 
 export function Eyebrow({
@@ -37,23 +35,5 @@ export function Lede({
     >
       {children}
     </p>
-  );
-}
-
-/** Quiet text link that sits next to a primary CTA. */
-export function LinkCta({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="font-body text-[15px] font-semibold text-ink-soft transition-colors hover:text-ink"
-    >
-      {children}
-    </Link>
   );
 }
