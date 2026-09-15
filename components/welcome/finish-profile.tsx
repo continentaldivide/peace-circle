@@ -18,8 +18,9 @@ import {
 } from "@/lib/welcome";
 
 /**
- * The short finish step every way into the circle ends on — the launch code
- * and, from Step 4 onwards, a per-person invite.
+ * The short finish step both ways into the circle end on — a launch code and
+ * a per-person invite. Nothing in the app sends invites until Step 7's admin
+ * screen; until then they are made by hand through the admin API.
  *
  * Both arrive with a name already: the launch code carries the one typed
  * before the magic link, an invite carries whatever the admin entered. So this

@@ -86,8 +86,12 @@ select throws_ok(
 -- accepted" case.
 --
 -- These numbers are also written down in INQUIRY_LIMITS in lib/inquiries.ts,
--- and nothing checks the two against each other — there is no JavaScript test
--- runner here yet (PLAN.md puts one after Step 3). This half is the one that
+-- and nothing checks the two against each other. That is deliberate for now:
+-- a real check has to ask the database what it enforces, which would make
+-- `npm test` depend on the local stack, and PLAN.md's end-to-end tests will
+-- run against the database anyway. Until then, a drift that lets the form
+-- accept more than the column allows shows up as a logged insert failure in
+-- app/actions/inquiries.ts, naming the constraint. This half is the one that
 -- decides what actually reaches the column, so it is the half worth pinning
 -- first.
 
