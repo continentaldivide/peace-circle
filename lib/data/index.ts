@@ -1,9 +1,13 @@
+import "server-only";
+
+import { requireApproved } from "@/lib/dal";
 import {
   MOCK_CIRCLE_EVENTS,
-  MOCK_MEMBERS,
   MOCK_MESSAGES,
   MOCK_RESOURCES,
 } from "@/lib/data/mock";
+import { toMember } from "@/lib/data/rows";
+import { createClient } from "@/lib/supabase/server";
 import type {
   CircleEvent,
   Member,
@@ -46,12 +50,22 @@ export async function getResource(id: string): Promise<Resource | null> {
   return MOCK_RESOURCES.find((r) => r.id === id) ?? null;
 }
 
+/**
+ * Every profile, for resolving authors. Includes revoked members on purpose:
+ * revoking leaves someone's words in place, and those words still need a name
+ * beside them. RLS lets approved members read every profile for this reason.
+ * Filter by status only where something lists the circle's *current* members.
+ */
 export async function getMembers(): Promise<Member[]> {
-  return MOCK_MEMBERS;
-}
+  await requireApproved();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, name, role, avatar_tint")
+    .order("name");
 
-export async function getMember(id: string): Promise<Member | null> {
-  return MOCK_MEMBERS.find((m) => m.id === id) ?? null;
+  if (error) throw new Error(`Could not read members: ${error.message}`);
+  return data.map(toMember);
 }
 
 /**
