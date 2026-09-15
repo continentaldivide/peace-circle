@@ -26,8 +26,16 @@ function DayDivider({ label }: { label: string }) {
   );
 }
 
-function Bubble({ message, author }: { message: Message; author: AuthorInfo }) {
-  const me = message.authorId === "you";
+function Bubble({
+  message,
+  author,
+  me,
+}: {
+  message: Message;
+  author: AuthorInfo;
+  /** Sent by the signed-in member, so drawn on the right in the accent. */
+  me: boolean;
+}) {
   return (
     <div
       className={`flex items-start gap-[11px] ${me ? "flex-row-reverse" : ""}`}
@@ -158,7 +166,7 @@ export function CircleChat({
       ...prev,
       {
         id: "msg" + Date.now(),
-        authorId: "you",
+        authorId: user.id,
         createdAt: new Date().toISOString(),
         body,
       },
@@ -193,7 +201,11 @@ export function CircleChat({
               circleDate(m.createdAt) ? (
               <DayDivider label={formatDayLabel(m.createdAt)} />
             ) : null}
-            <Bubble message={m} author={lookup(m.authorId)} />
+            <Bubble
+              message={m}
+              author={lookup(m.authorId)}
+              me={m.authorId === user.id}
+            />
           </div>
         ))}
       </div>

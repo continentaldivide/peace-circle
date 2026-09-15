@@ -72,7 +72,6 @@ export type ResourceKind = Resource["kind"];
 /** A message in The Circle group chat. */
 export type Message = {
   id: string;
-  /** Member id, or "you" for the signed-in member. */
   authorId: string;
   /** ISO timestamp. The day divider and time label are both formatted from it. */
   createdAt: string;

@@ -33,20 +33,13 @@ export function LibraryView({
     members.forEach((m) =>
       map.set(m.id, { name: m.name, initials: m.initials, tint: m.tint }),
     );
-    // Mock rows still author as the "you" sentinel; Step 4 replaces it with a
-    // real profiles.id.
-    map.set("you", {
-      name: user.name,
-      initials: user.initials,
-      tint: user.tint,
-    });
     return (id: string): AuthorInfo =>
       map.get(id) ?? {
         name: "A member",
         initials: "·",
         tint: "var(--ink-soft)",
       };
-  }, [members, user]);
+  }, [members]);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = {
@@ -82,7 +75,7 @@ export function LibraryView({
                 ...r.comments,
                 {
                   id: "c" + Date.now(),
-                  authorId: "you",
+                  authorId: user.id,
                   createdAt: new Date().toISOString(),
                   body,
                 },

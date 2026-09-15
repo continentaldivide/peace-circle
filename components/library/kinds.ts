@@ -17,5 +17,5 @@ export const KIND_LABELS: Record<ResourceKind, string> = {
   book: "Book",
 };
 
-/** Author info resolved for display (members + the signed-in "you"). */
+/** Author info resolved for display from a member id. */
 export type AuthorInfo = { name: string; initials: string; tint: string };

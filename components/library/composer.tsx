@@ -52,7 +52,7 @@ export function Composer({
     if (!canPost) return;
     const base = {
       id: "r" + Date.now(),
-      authorId: "you",
+      authorId: user.id,
       createdAt: new Date().toISOString(),
       comments: [] as Comment[],
     };
