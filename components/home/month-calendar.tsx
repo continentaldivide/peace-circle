@@ -8,6 +8,7 @@ import {
   MONTHS_SHORT,
   circleToday,
   dayOfWeek,
+  formatTime,
   isoDate,
   parseIsoDate,
   type IsoDate,
@@ -42,7 +43,9 @@ const MO = "font-display text-[17px] font-semibold text-ink";
 
 export function MonthCalendar({ events }: { events: CircleEvent[] }) {
   const today = circleToday();
-  const next = events.find((e) => e.date >= today) ?? events[0];
+  // Events arrive earliest first. With nothing ahead there is no legend, and
+  // the calendar opens on this month rather than on a past gathering.
+  const next = events.find((e) => e.date >= today);
 
   const [view, setView] = useState(() => {
     const { year, month } = parseIsoDate(next ? next.date : today);
@@ -123,7 +126,7 @@ export function MonthCalendar({ events }: { events: CircleEvent[] }) {
           <span className="h-2 w-2 rounded-full bg-accent" />
           {MONTHS_SHORT[parseIsoDate(next.date).month]}{" "}
           {parseIsoDate(next.date).day} · {next.title.split(" — ")[0]},{" "}
-          {next.time}
+          {formatTime(next.startsAt)}
         </div>
       ) : null}
     </div>

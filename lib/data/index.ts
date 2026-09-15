@@ -2,8 +2,12 @@ import "server-only";
 
 import { requireApproved } from "@/lib/dal";
 import { decodeCursor, encodeCursor, olderThanFilter } from "@/lib/data/cursor";
-import { MOCK_CIRCLE_EVENTS } from "@/lib/data/mock";
-import { toMember, toMessage, toResource } from "@/lib/data/rows";
+import {
+  toCircleEvent,
+  toMember,
+  toMessage,
+  toResource,
+} from "@/lib/data/rows";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CircleEvent,
@@ -133,6 +137,20 @@ export async function getMessages(opts?: {
   };
 }
 
+/**
+ * Every gathering, past and upcoming, earliest first. Past ones stay because
+ * the calendar can page back to them; the Home view decides what counts as
+ * upcoming, against the circle's today.
+ */
 export async function getCircleEvents(): Promise<CircleEvent[]> {
-  return MOCK_CIRCLE_EVENTS;
+  await requireApproved();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, title, note, starts_at")
+    .order("starts_at", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (error) throw new Error(`Could not read events: ${error.message}`);
+  return data.map(toCircleEvent);
 }

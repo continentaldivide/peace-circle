@@ -1,5 +1,12 @@
-import type { Comment, Member, Message, Resource } from "@/lib/data/types";
+import type {
+  CircleEvent,
+  Comment,
+  Member,
+  Message,
+  Resource,
+} from "@/lib/data/types";
 import type { Database } from "@/lib/supabase/database.types";
+import { circleDate } from "@/lib/time";
 import { initialsFor } from "@/lib/utils";
 
 /**
@@ -131,5 +138,25 @@ export function toMessage(row: MessageRow): Message {
     authorId: row.author_id,
     createdAt: row.created_at,
     body: row.body,
+  };
+}
+
+export type EventRow = Pick<
+  Tables["events"]["Row"],
+  "id" | "title" | "note" | "starts_at"
+>;
+
+/**
+ * `date` is fixed here, in the circle's zone, rather than left to each
+ * component: an evening gathering is already the next day in UTC, and the
+ * calendar and the Upcoming list must agree on which day it is.
+ */
+export function toCircleEvent(row: EventRow): CircleEvent {
+  return {
+    id: row.id,
+    title: row.title,
+    note: row.note ?? undefined,
+    date: circleDate(row.starts_at),
+    startsAt: row.starts_at,
   };
 }

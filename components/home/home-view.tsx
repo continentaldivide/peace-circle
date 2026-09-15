@@ -18,6 +18,7 @@ import {
   circleHour,
   circleToday,
   daysBetween,
+  formatTime,
   parseIsoDate,
   weekdayName,
 } from "@/lib/time";
@@ -96,11 +97,13 @@ export function HomeView({
   // too, and an event must not land on a different day for a member elsewhere.
   const today = circleToday();
 
-  const upcoming = useMemo(() => {
-    const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
-    const ahead = sorted.filter((e) => e.date >= today);
-    return (ahead.length ? ahead : sorted).slice(0, 3);
-  }, [events, today]);
+  // Only what is still ahead. This used to fall back to past gatherings when
+  // nothing was scheduled, which then announced a months-old circle as
+  // happening "today". Events arrive earliest first.
+  const upcoming = useMemo(
+    () => events.filter((e) => e.date >= today).slice(0, 3),
+    [events, today],
+  );
 
   const recent = resources.slice(0, RECENT_COUNT);
   const openRes = resources.find((r) => r.id === openId) ?? null;
@@ -184,37 +187,43 @@ export function HomeView({
               <SectionHeader title="This month" />
               <MonthCalendar events={events} />
             </section>
-            <section>
-              <SectionHeader title="Upcoming" />
-              <div className="rounded-card border border-line bg-surface px-[18px] shadow-[var(--cardshadow)]">
-                {upcoming.map((event) => (
-                  <div
-                    key={event.id}
-                    className="flex w-full items-center gap-4 border-t border-line py-3 text-left first:border-t-0"
-                  >
-                    <div className="w-12 flex-none text-center">
-                      <div className="font-mono text-[10px] font-bold uppercase text-accent">
-                        {MONTHS_SHORT[parseIsoDate(event.date).month]}
+            {/* Hidden while nothing is scheduled; a designed empty state is
+                Step 7. */}
+            {upcoming.length > 0 ? (
+              <section>
+                <SectionHeader title="Upcoming" />
+                <div className="rounded-card border border-line bg-surface px-[18px] shadow-[var(--cardshadow)]">
+                  {upcoming.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex w-full items-center gap-4 border-t border-line py-3 text-left first:border-t-0"
+                    >
+                      <div className="w-12 flex-none text-center">
+                        <div className="font-mono text-[10px] font-bold uppercase text-accent">
+                          {MONTHS_SHORT[parseIsoDate(event.date).month]}
+                        </div>
+                        <div className="font-display text-[23px] font-semibold leading-none text-ink">
+                          {parseIsoDate(event.date).day}
+                        </div>
                       </div>
-                      <div className="font-display text-[23px] font-semibold leading-none text-ink">
-                        {parseIsoDate(event.date).day}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-display text-[15.5px] font-semibold text-ink">
+                          {event.title}
+                        </h3>
+                        {event.note ? (
+                          <p className="mt-px font-body text-[12.5px] text-faint">
+                            {event.note}
+                          </p>
+                        ) : null}
                       </div>
+                      <span className="whitespace-nowrap font-body text-[12.5px] text-ink-soft">
+                        {formatTime(event.startsAt)}
+                      </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-display text-[15.5px] font-semibold text-ink">
-                        {event.title}
-                      </h3>
-                      <p className="mt-px font-body text-[12.5px] text-faint">
-                        {event.note}
-                      </p>
-                    </div>
-                    <span className="whitespace-nowrap font-body text-[12.5px] text-ink-soft">
-                      {event.time}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </div>
 
           {/* Center — The Circle (chat). Moves to the top when the grid collapses. */}

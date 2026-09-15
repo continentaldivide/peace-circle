@@ -5,7 +5,12 @@
 
 import { describe, expect, test } from "vitest";
 
-import { toMember, toResource, type ResourceRow } from "@/lib/data/rows";
+import {
+  toCircleEvent,
+  toMember,
+  toResource,
+  type ResourceRow,
+} from "@/lib/data/rows";
 
 const LISA = "11111111-1111-1111-1111-111111111111";
 
@@ -152,5 +157,23 @@ describe("toResource", () => {
     expect(() => toResource(row({ kind: "book", title: "Untitled" }))).toThrow(
       /book .* has no book_author/,
     );
+  });
+});
+
+describe("toCircleEvent", () => {
+  test("an evening gathering keeps its New York date, though UTC has moved on", () => {
+    const e = toCircleEvent({
+      id: "e1",
+      title: "Late sitting",
+      note: null,
+      starts_at: "2026-08-17T00:30:00+00:00", // Sun Aug 16, 8:30 PM EDT
+    });
+    expect(e).toEqual({
+      id: "e1",
+      title: "Late sitting",
+      note: undefined,
+      date: "2026-08-16",
+      startsAt: "2026-08-17T00:30:00+00:00",
+    });
   });
 });

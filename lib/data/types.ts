@@ -103,10 +103,10 @@ export type MessagePage = {
 export type CircleEvent = {
   id: string;
   title: string;
-  /** Secondary line shown in Upcoming rows and the calendar legend. */
-  note: string;
-  /** ISO date, e.g. "2026-06-21". */
+  /** Secondary line shown in Upcoming rows. */
+  note?: string;
+  /** The day it starts in the circle's timezone, e.g. "2026-06-21". */
   date: string;
-  /** Time label, e.g. "4:00 PM". */
-  time: string;
+  /** ISO timestamp; components format the time from it. */
+  startsAt: string;
 };
