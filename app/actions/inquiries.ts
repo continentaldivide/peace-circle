@@ -69,6 +69,13 @@ export async function submitInquiry(
   });
 
   if (error) {
+    // The visitor only sees a generic sentence, so this line is the sole record
+    // that an inquiry was lost. The address is there so someone can write back;
+    // the code and message say why — a check constraint names itself, which is
+    // how a drift between INQUIRY_LIMITS and the columns would show up.
+    console.error(
+      `[inquiries] could not save ${email}'s inquiry: ${error.code} ${error.message}`,
+    );
     return {
       status: "error",
       formError:
