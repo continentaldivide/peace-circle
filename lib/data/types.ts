@@ -1,6 +1,10 @@
 // Shapes mirror the design handoff's resource model. UI components depend only
 // on these types and the accessor functions in `index.ts` — never on where the
-// data comes from. Phase 2 backs the same functions with Supabase queries.
+// data comes from.
+//
+// Timestamps cross this boundary as ISO strings, never as display labels and
+// never as Dates (which do not survive the trip to a client component intact).
+// Components format them with `lib/time.ts`, in the circle's timezone.
 
 export type Member = {
   id: string;
@@ -14,14 +18,17 @@ export type Member = {
 export type Comment = {
   id: string;
   authorId: string;
-  when: string; // relative label in the prototype; a timestamp in Phase 2
+  /** ISO timestamp. */
+  createdAt: string;
   body: string;
 };
 
 type ResourceBase = {
   id: string;
   authorId: string;
-  when: string;
+  /** ISO timestamp. */
+  createdAt: string;
+  /** Oldest first. */
   comments: Comment[];
 };
 
@@ -43,7 +50,10 @@ export type PictureResource = ResourceBase & {
   kind: "picture";
   title: string;
   caption?: string;
-  /** Caption shown inside the striped placeholder (no real images yet). */
+  /**
+   * Caption shown inside the striped placeholder. There is no column for it:
+   * real images are Step 6, and until then it is derived from the title.
+   */
   placeholder: string;
 };
 
@@ -59,37 +69,12 @@ export type Resource =
 
 export type ResourceKind = Resource["kind"];
 
-/** The "what to expect" detail for the next gathering. */
-export type NextMeeting = {
-  tag: string;
-  date: string;
-  location: string;
-  expect: string[];
-  goodToKnow: {
-    address: string;
-    parking: string;
-    welcome: string;
-  };
-};
-
-export type Meeting = {
-  id: string;
-  month: string;
-  day: string;
-  title: string;
-  note: string;
-  time: string;
-};
-
 /** A message in The Circle group chat. */
 export type Message = {
   id: string;
-  /** Member id, or "you" for the signed-in member. */
   authorId: string;
-  /** Day-divider label in the prototype (e.g. "Yesterday"); a date in Phase 2. */
-  day: string;
-  /** Time-of-day label (e.g. "4:12 PM"); a timestamp in Phase 2. */
-  when: string;
+  /** ISO timestamp. The day divider and time label are both formatted from it. */
+  createdAt: string;
   body: string;
 };
 
@@ -103,22 +88,24 @@ export type MessagePage = {
   messages: Message[];
   /** Are there older messages before this batch? */
   hasMore: boolean;
-  /** Cursor for the batch *older* than this one; null when at the start. */
+  /**
+   * Cursor for the batch *older* than this one; null when at the start.
+   * Opaque to components: pass it back to `loadOlderMessages` unchanged.
+   */
   nextCursor: string | null;
 };
 
 /**
  * A scheduled circle gathering with a machine-readable date, so the member
- * Home can render a real month calendar. Mirrors the Meetings seed; Phase 2
- * backs both from the same Supabase table.
+ * Home can render a real month calendar and its Upcoming list.
  */
 export type CircleEvent = {
   id: string;
   title: string;
-  /** Secondary line shown in Upcoming rows and the calendar legend. */
-  note: string;
-  /** ISO date, e.g. "2026-06-21". */
+  /** Secondary line shown in Upcoming rows. */
+  note?: string;
+  /** The day it starts in the circle's timezone, e.g. "2026-06-21". */
   date: string;
-  /** Time label, e.g. "4:00 PM". */
-  time: string;
+  /** ISO timestamp; components format the time from it. */
+  startsAt: string;
 };

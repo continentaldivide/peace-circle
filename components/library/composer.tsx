@@ -52,8 +52,8 @@ export function Composer({
     if (!canPost) return;
     const base = {
       id: "r" + Date.now(),
-      authorId: "you",
-      when: "just now",
+      authorId: user.id,
+      createdAt: new Date().toISOString(),
       comments: [] as Comment[],
     };
 

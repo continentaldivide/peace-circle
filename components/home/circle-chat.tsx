@@ -11,15 +11,10 @@ import {
 import { Avatar } from "@/components/avatar";
 import type { AuthorInfo } from "@/components/library/kinds";
 import type { Member, Message, MessagePage } from "@/lib/data";
+import { circleDate, formatDayLabel, formatTime } from "@/lib/time";
 
 /** Fixed height of the chat card, so new messages scroll rather than grow it. */
 const CHAT_HEIGHT = "h-[750px]";
-
-function nowLabel(): string {
-  return new Date()
-    .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    .toUpperCase();
-}
 
 function DayDivider({ label }: { label: string }) {
   return (
@@ -31,8 +26,16 @@ function DayDivider({ label }: { label: string }) {
   );
 }
 
-function Bubble({ message, author }: { message: Message; author: AuthorInfo }) {
-  const me = message.authorId === "you";
+function Bubble({
+  message,
+  author,
+  me,
+}: {
+  message: Message;
+  author: AuthorInfo;
+  /** Sent by the signed-in member, so drawn on the right in the accent. */
+  me: boolean;
+}) {
   return (
     <div
       className={`flex items-start gap-[11px] ${me ? "flex-row-reverse" : ""}`}
@@ -48,7 +51,7 @@ function Bubble({ message, author }: { message: Message; author: AuthorInfo }) {
         >
           {author.name}
           <span className="text-[11.5px] font-normal text-faint">
-            {message.when}
+            {formatTime(message.createdAt)}
           </span>
         </span>
         <span
@@ -77,12 +80,15 @@ export function CircleChat({
   initialPage,
   loadOlder,
   user,
+  now,
   lookup,
   className,
 }: {
   initialPage: MessagePage;
   loadOlder: (cursor: string) => Promise<MessagePage>;
   user: Member;
+  /** The page's render instant, for "Today" and "Yesterday". */
+  now: string;
   lookup: (id: string) => AuthorInfo;
   className?: string;
 }) {
@@ -90,6 +96,12 @@ export function CircleChat({
   const [cursor, setCursor] = useState<string | null>(initialPage.nextCursor);
   const [hasMore, setHasMore] = useState(initialPage.hasMore);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  // Set when a page of history fails to load, and cleared only by the member
+  // choosing to try again. Without it, the observer below retries on its own:
+  // each failure re-creates `fetchOlder`, the effect re-observes the sentinel,
+  // and a sentinel still in view fires at once — dozens of requests a second
+  // against a database that is already failing.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [draft, setDraft] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -122,7 +134,7 @@ export function CircleChat({
   }, [messages]);
 
   const fetchOlder = useCallback(async () => {
-    if (!hasMore || loadingOlder || cursor === null) return;
+    if (!hasMore || loadingOlder || loadFailed || cursor === null) return;
     setLoadingOlder(true);
     prependFromHeight.current = scrollRef.current?.scrollHeight ?? 0;
     try {
@@ -134,10 +146,17 @@ export function CircleChat({
       });
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
+    } catch (error) {
+      // Nothing was prepended, so there is no position to hold. Left set, the
+      // next message sent would be treated as a prepend and not scrolled into
+      // view.
+      prependFromHeight.current = null;
+      setLoadFailed(true);
+      console.warn("[chat] could not load earlier messages", error);
     } finally {
       setLoadingOlder(false);
     }
-  }, [hasMore, loadingOlder, cursor, loadOlder]);
+  }, [hasMore, loadingOlder, loadFailed, cursor, loadOlder]);
 
   // Load the previous page when the top of the history scrolls into view.
   useEffect(() => {
@@ -154,6 +173,13 @@ export function CircleChat({
     return () => io.disconnect();
   }, [fetchOlder]);
 
+  // Clearing the flag is the retry: it re-creates `fetchOlder`, and the
+  // observer loads the page as soon as the top of the history is in view —
+  // which it is, since that is where this button sits.
+  function retryOlder() {
+    setLoadFailed(false);
+  }
+
   function send(e: React.FormEvent) {
     e.preventDefault();
     const body = draft.trim();
@@ -163,9 +189,8 @@ export function CircleChat({
       ...prev,
       {
         id: "msg" + Date.now(),
-        authorId: "you",
-        day: "Today",
-        when: nowLabel(),
+        authorId: user.id,
+        createdAt: new Date().toISOString(),
         body,
       },
     ]);
@@ -184,8 +209,26 @@ export function CircleChat({
       >
         <div ref={topSentinel} />
         {hasMore ? (
-          <div className="text-center font-mono text-[10px] uppercase text-faint">
-            {loadingOlder ? "Loading earlier messages…" : "Scroll up for more"}
+          <div
+            role="status"
+            className="text-center font-mono text-[10px] uppercase text-faint"
+          >
+            {loadFailed ? (
+              <>
+                Couldn&rsquo;t load earlier messages ·{" "}
+                <button
+                  type="button"
+                  onClick={retryOlder}
+                  className="cursor-pointer uppercase text-accent hover:underline"
+                >
+                  Try again
+                </button>
+              </>
+            ) : loadingOlder ? (
+              "Loading earlier messages…"
+            ) : (
+              "Scroll up for more"
+            )}
           </div>
         ) : (
           <div className="text-center font-mono text-[10px] uppercase text-faint">
@@ -194,10 +237,16 @@ export function CircleChat({
         )}
         {messages.map((m, i) => (
           <div key={m.id} className="flex flex-col gap-[15px]">
-            {i === 0 || messages[i - 1].day !== m.day ? (
-              <DayDivider label={m.day} />
+            {i === 0 ||
+            circleDate(messages[i - 1].createdAt) !==
+              circleDate(m.createdAt) ? (
+              <DayDivider label={formatDayLabel(m.createdAt, now)} />
             ) : null}
-            <Bubble message={m} author={lookup(m.authorId)} />
+            <Bubble
+              message={m}
+              author={lookup(m.authorId)}
+              me={m.authorId === user.id}
+            />
           </div>
         ))}
       </div>

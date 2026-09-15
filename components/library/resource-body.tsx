@@ -1,6 +1,7 @@
 import { Avatar } from "@/components/avatar";
 import { KIND_LABELS, type AuthorInfo } from "@/components/library/kinds";
 import type { Resource, ResourceKind } from "@/lib/data";
+import { formatRelative } from "@/lib/time";
 
 const TITLE = "font-display text-[19px] font-semibold leading-[1.22] text-ink";
 const TEXT = "font-body text-[14px] leading-[1.5] text-ink-soft";
@@ -68,10 +69,14 @@ export function ResourceBody({ r }: { r: Resource }) {
 
 export function CardMeta({
   author,
-  when,
+  createdAt,
+  now,
 }: {
   author: AuthorInfo;
-  when: string;
+  /** ISO timestamp. */
+  createdAt: string;
+  /** The page's render instant, so server and browser agree on the label. */
+  now: string;
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -80,7 +85,9 @@ export function CardMeta({
         {author.name}
       </span>
       <span className="text-faint">·</span>
-      <span className="font-body text-[12.5px] text-faint">{when}</span>
+      <span className="font-body text-[12.5px] text-faint">
+        {formatRelative(createdAt, now)}
+      </span>
     </div>
   );
 }

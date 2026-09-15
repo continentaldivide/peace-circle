@@ -4,9 +4,8 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import type { Member } from "@/lib/data";
-import type { Database } from "@/lib/supabase/database.types";
+import { toMember, type ProfileRow } from "@/lib/data/rows";
 import { createClient } from "@/lib/supabase/server";
-import { initialsFor } from "@/lib/utils";
 
 /**
  * The Data Access Layer — the server-side half of the access gate.
@@ -34,8 +33,6 @@ import { initialsFor } from "@/lib/utils";
  * here instead of at runtime in the code deciding who gets in. `status` picks
  * up the `profile_status` enum's values the same way.
  */
-type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
-
 export type Profile = Pick<
   ProfileRow,
   "id" | "name" | "role" | "status" | "is_admin" | "avatar_tint"
@@ -122,20 +119,13 @@ export const requireApproved = cache(
 );
 
 /**
- * The signed-in member in the shape components already expect, so the profile
- * row's column names stop at this boundary — `avatar_tint` becomes `tint`, and
- * initials are derived rather than stored. When Step 4 moves the rest of the
- * reads into the data seam, this mapping moves with them.
+ * The signed-in member in the shape components already expect. Same mapper as
+ * the data seam's `getMembers()`, so the signed-in member and their entry in
+ * the author lookup can never disagree.
  */
 export const getSignedInMember = cache(async (): Promise<Member> => {
   const { profile } = await requireApproved();
-  return {
-    id: profile.id,
-    name: profile.name,
-    role: profile.role,
-    initials: initialsFor(profile.name),
-    tint: profile.avatar_tint ?? "var(--ink-soft)",
-  };
+  return toMember(profile);
 });
 
 /** For admin-only surfaces (the inquiry queue, moderation, event management). */

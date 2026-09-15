@@ -1,4 +1,4 @@
-import { Eyebrow, Lede, LinkCta } from "@/components/landing/shared";
+import { Eyebrow, Lede } from "@/components/landing/shared";
 import { ButtonLink } from "@/components/ui/button";
 
 const PURPOSE = [
@@ -35,7 +35,6 @@ export function Hero() {
       </Lede>
       <div className="mt-8 flex flex-wrap items-center gap-[22px]">
         <ButtonLink href="/join">Join the circle</ButtonLink>
-        <LinkCta href="/meetings">What we do →</LinkCta>
       </div>
 
       <div className="mt-auto grid grid-cols-1 gap-10 border-t border-line py-10 sm:grid-cols-3">

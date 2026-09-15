@@ -4,10 +4,11 @@
 -- ships migrations, not this file, so these fictional members never reach the
 -- hosted project.
 --
--- Ported from lib/data/mock.ts. The relative labels there ("2 days ago",
--- "4:12 PM", "Yesterday") become real timestamptz values computed from now(),
--- so the UI has genuine dates to format once the data seam swaps to Supabase
--- and formatting moves out of the data layer and into the components.
+-- Ported from the prototype's mock data (lib/data/mock.ts, deleted in Step 4).
+-- Its relative labels ("2 days ago", "4:12 PM", "Yesterday") became real
+-- timestamptz values computed from now(), which lib/time.ts formats. Events are
+-- the exception: fixed dates, so some are past and, after October 18, none are
+-- upcoming.
 
 -- ---------------------------------------------------------------------------
 -- Admin allowlist
@@ -232,8 +233,8 @@ values
 
 -- ---------------------------------------------------------------------------
 -- The Circle chat. 39 messages so the Home chat's scroll-up paging (15 per
--- page) is exercisable. The mock's "you" messages are attributed to Lisa here,
--- since "you" only exists once someone is signed in.
+-- page) is exercisable. The prototype's messages from the signed-in member are
+-- attributed to Lisa here, so sign in as Lisa to see them as your own.
 -- ---------------------------------------------------------------------------
 
 insert into public.messages (author_id, body, created_at)

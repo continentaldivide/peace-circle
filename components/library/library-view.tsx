@@ -16,10 +16,13 @@ type Filter = ResourceKind | "all";
 
 export function LibraryView({
   user,
+  now,
   initialResources,
   members,
 }: {
   user: Member;
+  /** ISO instant the page was rendered at; see `lib/time.ts`. */
+  now: string;
   initialResources: Resource[];
   members: Member[];
 }) {
@@ -33,20 +36,13 @@ export function LibraryView({
     members.forEach((m) =>
       map.set(m.id, { name: m.name, initials: m.initials, tint: m.tint }),
     );
-    // Mock rows still author as the "you" sentinel; Step 4 replaces it with a
-    // real profiles.id.
-    map.set("you", {
-      name: user.name,
-      initials: user.initials,
-      tint: user.tint,
-    });
     return (id: string): AuthorInfo =>
       map.get(id) ?? {
         name: "A member",
         initials: "·",
         tint: "var(--ink-soft)",
       };
-  }, [members, user]);
+  }, [members]);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = {
@@ -82,8 +78,8 @@ export function LibraryView({
                 ...r.comments,
                 {
                   id: "c" + Date.now(),
-                  authorId: "you",
-                  when: "just now",
+                  authorId: user.id,
+                  createdAt: new Date().toISOString(),
                   body,
                 },
               ],
@@ -140,6 +136,7 @@ export function LibraryView({
                 key={r.id}
                 r={r}
                 author={lookup(r.authorId)}
+                now={now}
                 onOpen={setOpenId}
               />
             ))}
@@ -151,6 +148,7 @@ export function LibraryView({
         open={openId !== null}
         resource={openRes}
         user={user}
+        now={now}
         lookup={lookup}
         onClose={() => setOpenId(null)}
         onAddComment={addComment}

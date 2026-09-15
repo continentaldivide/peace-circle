@@ -62,9 +62,6 @@ export function MemberNav({ user }: { user: Member }) {
         <NavLink href="/library" active={pathname === "/library"}>
           The Library
         </NavLink>
-        <NavLink href="/meetings" active={pathname === "/meetings"}>
-          Meetings
-        </NavLink>
         <Link href="/about" className={NAV_LINKS}>
           About
         </Link>

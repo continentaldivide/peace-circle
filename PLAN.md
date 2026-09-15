@@ -4,9 +4,9 @@ A web app for the Peace Circle community group: a place for approved members to
 share resources (quotes, links, pictures, books), discuss them, and track
 upcoming gatherings.
 
-The UI is built, the database schema is in place, and the access gate is real.
-What remains is the onboarding paths, real writes, and moving the data seam off
-mock data. This document is the plan for that work.
+The UI is built, the database schema is in place, the access gate is real, and
+every page reads real data. What remains is real writes, search and uploads,
+admin tools, and launch. This document is the plan for that work.
 
 ---
 
@@ -26,7 +26,7 @@ mock data. This document is the plan for that work.
   along; newest first.
 - **Searchable library** — full-text search over past shares.
 - **Commentable shares** — comment threads; no likes or reactions.
-- **Events calendar** — upcoming gatherings, admin-managed.
+- **Events calendar** — upcoming gatherings on member Home, admin-managed.
 
 ---
 
@@ -80,8 +80,8 @@ change into a rewrite.
 
 **All** data reads go through `lib/data/index.ts` — `getResources()`,
 `getMessages()`, `getEvents()`. Components never touch the data source directly
-and never learn where the data came from. Swapping mock arrays for Supabase
-queries changes only the insides of those functions.
+and never learn where the data came from. When they moved from mock arrays to
+Supabase queries in Step 4, only their insides and the timestamp fields changed.
 
 ### The access gate lives in the database
 
@@ -100,19 +100,17 @@ them go red. Run with `supabase test db`.
 
 ## Status
 
-Steps 1, 2 and 3 are done: there is a hosted Supabase project with the schema
-pushed, the access gate is real, and both ways into the circle work. Member
-pages are server components that call `requireApproved()` before rendering,
-backed by RLS — the localStorage stub and its client-side redirects are gone,
-so view-source no longer reveals the circle's contents.
+Steps 1–4 are done: there is a hosted Supabase project with the schema pushed,
+the access gate is real, both ways into the circle work, and every member page
+reads real data. Member pages are server components that call
+`requireApproved()` before rendering, backed by RLS.
 
 Onboarding is complete end to end, verified in a browser against the local
 stack rather than reasoned about:
 
 - **`/join` is the interest form.** No auth, no magic link — it inserts an
   `inquiries` row and emails the admin notify list with reply-to set to the
-  applicant. The loop it used to create (`/pending` → `/join` → signed in →
-  back to `/pending`) is gone.
+  applicant.
 - **`/welcome` handles both ways in.** `?code=` collects a name and email,
   sends a magic link that carries the code back through the callback's `next`
   parameter, redeems it, and ends on the finish-profile step. An invite link
@@ -125,7 +123,24 @@ stack rather than reasoned about:
   no insert policy at all — which is also why nothing yet needs the
   service-role key. Step 7's invites will be the first thing that does.
 
-Two deliberate omissions inside Step 3, so they are not mistaken for oversights:
+The data seam is real (Step 4). `lib/data/index.ts` queries `profiles`,
+`resources` with their `comments`, `messages`, and `events`, each after
+`requireApproved()`; `lib/data/mock.ts` is gone. Things worth knowing:
+
+- **The circle's timezone is US Eastern, `America/New_York`.** Every date and
+  time is formatted by `lib/time.ts` in that zone, never the runtime's. A
+  server in UTC and a browser elsewhere would otherwise disagree about times
+  and about "today", which is wrong and fails hydration. Timestamps cross the
+  seam as ISO strings; `CircleEvent.date` is the one calendar date, already in
+  that zone.
+- **Chat history pages by `(created_at, id)`.** A timestamp-only cursor skips
+  messages that share a timestamp at a page boundary.
+- **`/meetings` is gone,** with nothing in its place. Home's calendar and
+  Upcoming list are the only views of `events`. The columns only that page
+  used (`agenda`, `address`, `parking`, `welcome`, `description`, `location`)
+  stay in the schema for Step 7's event management.
+
+Three deliberate omissions, so they are not mistaken for oversights:
 
 - **No per-IP rate limit on `/join`.** It would need its own table, since
   serverless instances share no memory, and the honeypot is hardened and the
@@ -135,19 +150,16 @@ Two deliberate omissions inside Step 3, so they are not mistaken for oversights:
   launch codes (Step 8) and nothing sends invites (Step 7), so both are
   driven by hand for now — a `launch_codes` row via psql, an invite through
   the admin API.
-
-What the gate now protects is still mock data. `lib/data/index.ts` returns
-arrays from `lib/data/mock.ts`, so an authenticated member sees fictional
-content: a real door in front of a stage set.
+- **Nothing is shown when nothing is scheduled.** With no upcoming events,
+  Home simply omits its Upcoming section and calendar legend. Designed empty
+  states are Step 7.
 
 Still stubbed or missing:
 
-- **The data seam is unchanged.** Every read goes through `lib/data/index.ts`
-  and every one of them returns mock data (Step 4).
 - **All mutations are client state.** Composing a share, adding a comment, and
   sending a chat message update React state and vanish on reload (Step 5).
-- **No uploads.** Picture resources carry a `placeholder` string; the composer's
-  drop zone is decorative (Step 6).
+- **No uploads.** Picture resources carry a `placeholder` derived from the
+  title; the composer's drop zone is decorative (Step 6).
 - **No search.** The Library filters by kind in memory (Step 6).
 - **Nothing is emailed from the hosted project yet.** The outgoing seam is
   built (`lib/email.ts`) and `/join` uses it, but without `RESEND_API_KEY` it
@@ -164,7 +176,6 @@ Still stubbed or missing:
   sent from the hosted project would otherwise arrive with a link this app
   cannot complete.
 - **Placeholder pages** — `/about` and `/admin` render `PlaceholderPage`.
-  `/pending` and `/welcome` are now real screens.
 
 ---
 
@@ -234,27 +245,29 @@ Implements **Member sign-up & onboarding** below.
 
 ### Step 4 — Swap the data seam
 
-Replace the bodies of the `lib/data/index.ts` functions with Supabase queries,
-each going through the DAL first. Then delete `lib/data/mock.ts`.
+_Done._ Replace the bodies of the `lib/data/index.ts` functions with Supabase
+queries, each going through the DAL first. Then delete `lib/data/mock.ts`.
 
-Three shape changes make this bigger than it sounds:
+Three shape changes made this bigger than it sounds:
 
-- **Times are pre-formatted strings.** `Message.day` / `Message.when`,
-  `Resource.when`, `Comment.when`, and `Meeting.{month,day,time}` are display
-  labels ("Yesterday", "4:12 PM", "just now"). Postgres returns `timestamptz`,
-  so formatting has to move out of the data layer and into the components. This
-  is the largest single piece of churn here and the easiest to underestimate.
-- **`getMessages()`'s cursor** changes from a message id to a timestamp:
-  `.lt("created_at", before).order("created_at", { ascending: false }).limit(n)`,
-  then reverse for display. The index is `(created_at desc, id desc)` so pages
-  stay stable when two messages share a timestamp.
-- **`NextMeeting` is a denormalized blob** (`expect[]`, `goodToKnow{}`). Derive
-  it from the next `events` row instead — one table already feeds the calendar,
-  the upcoming list, and the next-gathering detail.
+- **Times were pre-formatted strings.** `Message.day` / `Message.when`,
+  `Resource.when`, `Comment.when`, and `CircleEvent.time` were display labels
+  ("Yesterday", "4:12 PM", "just now"). Postgres returns `timestamptz`, so they
+  now cross the seam as ISO strings and components format them with
+  `lib/time.ts`, always in `America/New_York` (see Status). This was the largest
+  single piece of churn and the easiest to underestimate.
+- **`getMessages()`'s cursor** changed from a message id to the oldest message's
+  `(created_at, id)` pair:
+  `created_at < t or (created_at = t and id < id)`, ordered by both descending,
+  then reversed for display. The index is `(created_at desc, id desc)` so pages
+  stay stable when two messages share a timestamp; a timestamp alone would skip
+  them. The cursor round-trips through the browser, so it is validated.
+- **Per-kind fields share columns.** A quote's note, a picture's caption, and a
+  link's or book's description all live in `resources.body`.
 
-Also: `authorId: "you"` is a sentinel for the signed-in member and becomes a
-real `profiles.id`; and the seam maps the `avatar_tint` column to the `tint`
-field the components expect, so no component changes.
+Also: `authorId: "you"` was a sentinel for the signed-in member and is now a
+real `profiles.id`; and one mapper (`lib/data/rows.ts`) turns `avatar_tint` into
+the `tint` field for both the seam and `getSignedInMember()`.
 
 ### Step 5 — Real writes
 
@@ -273,7 +286,7 @@ message, replacing the client-state mutations in `composer.tsx`,
 
 Keep optimistic UI on the chat send so it stays feeling like a group text.
 
-### Step 6 — Search, uploads, calendar
+### Step 6 — Search and uploads
 
 - Full-text search over the `resources.search` tsvector, wired into the
   Library's existing filter bar.
@@ -281,7 +294,6 @@ Keep optimistic UI on the chat send so it stays feeling like a group text.
   with `image_path` and render via `next/image`. Note Next 16 changed
   `next/image` defaults (`minimumCacheTTL`, `imageSizes`, `qualities`, and local
   images with query strings).
-- Point the Meetings page and Home calendar at the real `events` table.
 
 ### Step 7 — Admin & polish
 
@@ -424,7 +436,7 @@ and the admin bootstrap trigger all live there with commentary. The map:
 | `resources`    | The Library shares: `quote`, `link`, `picture`, `book`.         |
 | `comments`     | Threads on a resource.                                          |
 | `messages`     | The Circle group chat; cursor-paginated.                        |
-| `events`       | Admin-managed gatherings; feeds calendar, upcoming, and detail. |
+| `events`       | Admin-managed gatherings; feeds Home's calendar and upcoming.   |
 
 Three notes that aren't obvious from the SQL alone:
 

@@ -13,11 +13,13 @@ import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { Sheet, SheetClose } from "@/components/ui/sheet";
 import type { Member, Resource } from "@/lib/data";
+import { formatRelative } from "@/lib/time";
 
 export function ResourceDetail({
   open,
   resource,
   user,
+  now,
   lookup,
   onClose,
   onAddComment,
@@ -25,6 +27,7 @@ export function ResourceDetail({
   open: boolean;
   resource: Resource | null;
   user: Member;
+  now: string;
   lookup: (authorId: string) => AuthorInfo;
   onClose: () => void;
   onAddComment: (resourceId: string, body: string) => void;
@@ -58,7 +61,11 @@ export function ResourceDetail({
               <KindTag kind={shown.kind} />
               <ResourceBody r={shown} />
               <div className="mt-3 border-t border-line pt-[11px]">
-                <CardMeta author={lookup(shown.authorId)} when={shown.when} />
+                <CardMeta
+                  author={lookup(shown.authorId)}
+                  createdAt={shown.createdAt}
+                  now={now}
+                />
               </div>
             </div>
 
@@ -85,7 +92,7 @@ export function ResourceDetail({
                             {a.name}
                           </span>
                           <span className="font-body text-[12px] text-faint">
-                            {c.when}
+                            {formatRelative(c.createdAt, now)}
                           </span>
                         </p>
                         <p className="mt-0.5 font-body text-[14px] leading-[1.5] text-ink-soft">

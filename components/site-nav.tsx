@@ -11,7 +11,7 @@ const WORDMARK =
 const NAV_LINKS =
   "text-[15px] font-medium text-ink-soft transition-colors hover:text-ink";
 
-/** Public top nav shown on landing / meetings / about. */
+/** Public top nav shown on landing / about. */
 export function SiteNav() {
   return (
     <header
@@ -29,9 +29,6 @@ export function SiteNav() {
             who is not a member to /signin or /pending. */}
         <Link href="/library" className={NAV_LINKS}>
           The Library
-        </Link>
-        <Link href="/meetings" className={NAV_LINKS}>
-          Meetings
         </Link>
         <Link href="/about" className={NAV_LINKS}>
           About

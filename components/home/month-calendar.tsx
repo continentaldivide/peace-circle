@@ -1,73 +1,71 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import type { CircleEvent } from "@/lib/data";
 import {
   MONTHS,
   MONTHS_SHORT,
-  parseDate,
-  startOfToday,
-} from "@/components/home/dates";
-import type { CircleEvent } from "@/lib/data";
+  circleToday,
+  dayOfWeek,
+  formatTime,
+  isoDate,
+  parseIsoDate,
+  type IsoDate,
+} from "@/lib/time";
 
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
+type Cell = { date: IsoDate; day: number; muted: boolean };
 
-type Cell = { date: Date; day: number; muted: boolean };
-
+// Plain `YYYY-MM-DD` arithmetic rather than local Dates: event dates are
+// already days in the circle's zone, and the browser's own zone has no say.
 function buildCells(year: number, month: number): Cell[] {
-  const first = new Date(year, month, 1);
-  const start = first.getDay(); // 0 = Sunday
+  const cell = (d: number, muted: boolean): Cell => {
+    const date = isoDate(year, month, d);
+    return { date, day: parseIsoDate(date).day, muted };
+  };
   const cells: Cell[] = [];
   // Leading days from the previous month.
-  for (let i = start - 1; i >= 0; i--) {
-    const date = new Date(year, month, -i);
-    cells.push({ date, day: date.getDate(), muted: true });
-  }
+  const start = dayOfWeek(isoDate(year, month, 1)); // 0 = Sunday
+  for (let i = start - 1; i >= 0; i--) cells.push(cell(-i, true));
   // This month.
-  const total = new Date(year, month + 1, 0).getDate();
-  for (let day = 1; day <= total; day++) {
-    cells.push({ date: new Date(year, month, day), day, muted: false });
-  }
+  const total = parseIsoDate(isoDate(year, month + 1, 0)).day;
+  for (let day = 1; day <= total; day++) cells.push(cell(day, false));
   // Trailing days from the next month to complete the final week.
-  let nextDay = 1;
-  while (cells.length % 7 !== 0) {
-    cells.push({
-      date: new Date(year, month + 1, nextDay),
-      day: nextDay,
-      muted: true,
-    });
-    nextDay++;
+  for (let day = total + 1; cells.length % 7 !== 0; day++) {
+    cells.push(cell(day, true));
   }
   return cells;
 }
 
 const MO = "font-display text-[17px] font-semibold text-ink";
 
-export function MonthCalendar({ events }: { events: CircleEvent[] }) {
-  const router = useRouter();
+export function MonthCalendar({
+  events,
+  now,
+}: {
+  events: CircleEvent[];
+  /** The page's render instant, so server and browser agree on today. */
+  now: string;
+}) {
+  const today = circleToday(now);
+  // Events arrive earliest first. With nothing ahead there is no legend, and
+  // the calendar opens on this month rather than on a past gathering.
+  const next = events.find((e) => e.date >= today);
 
-  const today = startOfToday();
-  const dated = events.map((e) => ({ event: e, date: parseDate(e.date) }));
-  const next = dated.find((e) => e.date >= today) ?? dated[0];
+  const [view, setView] = useState(() => {
+    const { year, month } = parseIsoDate(next ? next.date : today);
+    return { year, month };
+  });
 
-  const [view, setView] = useState(() =>
-    next
-      ? { year: next.date.getFullYear(), month: next.date.getMonth() }
-      : { year: today.getFullYear(), month: today.getMonth() },
-  );
-
-  const eventKeys = new Map(dated.map((e) => [dayKey(e.date), e.event]));
+  const eventKeys = new Map(events.map((e) => [e.date, e]));
   const cells = buildCells(view.year, view.month);
 
   function step(delta: number) {
     setView((v) => {
-      const d = new Date(v.year, v.month + delta, 1);
-      return { year: d.getFullYear(), month: d.getMonth() };
+      const { year, month } = parseIsoDate(isoDate(v.year, v.month + delta, 1));
+      return { year, month };
     });
   }
 
@@ -102,20 +100,21 @@ export function MonthCalendar({ events }: { events: CircleEvent[] }) {
           </div>
         ))}
         {cells.map((c, i) => {
-          const event = !c.muted ? eventKeys.get(dayKey(c.date)) : undefined;
+          const event = !c.muted ? eventKeys.get(c.date) : undefined;
           const base =
             "grid aspect-square place-items-center rounded-btn font-body text-[13px]";
           if (event) {
+            // Not a button: there is nowhere to go. The label still tells a
+            // screen reader which gathering the highlight marks.
             return (
-              <button
+              <div
                 key={i}
-                type="button"
-                aria-label={`${event.title} on ${MONTHS_SHORT[c.date.getMonth()]} ${c.day}`}
-                onClick={() => router.push("/meetings")}
+                role="img"
+                aria-label={`${event.title} on ${MONTHS_SHORT[view.month]} ${c.day}`}
                 className={`${base} bg-accent font-bold text-accent-ink`}
               >
                 {c.day}
-              </button>
+              </div>
             );
           }
           return (
@@ -132,8 +131,9 @@ export function MonthCalendar({ events }: { events: CircleEvent[] }) {
       {next ? (
         <div className="mt-3.5 flex items-center gap-2.5 font-body text-[12.5px] text-ink-soft">
           <span className="h-2 w-2 rounded-full bg-accent" />
-          {MONTHS_SHORT[next.date.getMonth()]} {next.date.getDate()} ·{" "}
-          {next.event.title.split(" — ")[0]}, {next.event.time}
+          {MONTHS_SHORT[parseIsoDate(next.date).month]}{" "}
+          {parseIsoDate(next.date).day} · {next.title.split(" — ")[0]},{" "}
+          {formatTime(next.startsAt)}
         </div>
       ) : null}
     </div>
