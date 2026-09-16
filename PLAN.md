@@ -224,9 +224,12 @@ Search and pictures are real (Step 6). Things worth knowing:
   it anyway — the check is a DNS lookup followed by a private-address test.
 - **The bytes never pass through a Server Action.** An action's body is capped at
   1 MB. The browser uploads straight to Storage with its own session — which is
-  what storage RLS checks — and the action receives a path, which it validates
-  for shape and then for ownership, since nothing stops a caller _claiming_ a
-  path that is already there.
+  what storage RLS checks — and the action receives a path. A share only _names_
+  a file, so which file it may name is a rule of its own: the
+  `resources_image_path_own` constraint requires `image_path` to be exactly
+  `<author_id>/<uuid>.<jpg|png|webp>`, so no writer — the app, a member with a
+  session and a REST client, or the service role — can point a share at another
+  member's photo. The action checks the same thing first, to say so in words.
 - **Deleting a share does not delete its object, and cannot be made to.**
   Storage guards its own tables with a trigger that refuses any direct SQL
   delete and says to use the Storage API, so a cascade or a row trigger is not

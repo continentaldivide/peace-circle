@@ -33,6 +33,10 @@ describe("isImageObjectName", () => {
     // A folder that is not an id, so not something a policy can compare.
     expect(isImageObjectName(`anyone/${FILE}.jpg`)).toBe(false);
     expect(isImageObjectName("")).toBe(false);
+    // Upper case: the database's `resources_image_path_own` refuses it, and an
+    // upper-case folder could never have passed the storage insert policy.
+    expect(isImageObjectName(`${LISA}/${FILE}.JPG`)).toBe(false);
+    expect(isImageObjectName(`${LISA}/${FILE.toUpperCase()}.jpg`)).toBe(false);
   });
 });
 
@@ -50,7 +54,7 @@ describe("imageObjectOwner", () => {
 describe("imageContentType", () => {
   test("comes from the name, not from whatever was stored", () => {
     expect(imageContentType(`${LISA}/${FILE}.jpg`)).toBe("image/jpeg");
-    expect(imageContentType(`${LISA}/${FILE}.PNG`)).toBe("image/png");
+    expect(imageContentType(`${LISA}/${FILE}.png`)).toBe("image/png");
     expect(imageContentType(`${LISA}/${FILE}.webp`)).toBe("image/webp");
   });
 

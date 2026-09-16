@@ -55,10 +55,12 @@ export async function createResource(
   }
 
   // The one thing in a draft that names something outside it. The storage
-  // policies stop a member writing into another member's folder, but nothing
-  // stops them *claiming* a path that is already there — and a picture whose
-  // file belongs to someone else is a share attributed to the wrong person.
-  // The folder is the uploader, so this is the whole of the check.
+  // policies stop a member writing into another member's folder, but a share
+  // only *names* a file — and one naming someone else's photo is a share
+  // attributed to the wrong person. The folder is the uploader, so this is the
+  // whole of the check. Like everything else here it decides what the member
+  // is told: the `resources_image_path_own` constraint refuses the same row
+  // for anyone who writes to the table without coming through this action.
   if (draft.image && imageObjectOwner(draft.image.path) !== userId) {
     console.warn(
       `[resources] ${userId} claimed an image outside their own folder`,

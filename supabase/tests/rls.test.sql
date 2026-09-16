@@ -8,7 +8,7 @@
 -- Run with: supabase test db
 
 begin;
-select plan(91);
+select plan(96);
 
 -- Seeded fixtures (see supabase/seed.sql).
 --   1111… Lisa  — approved admin
@@ -954,7 +954,7 @@ reset role;
 select throws_ok(
   $$insert into public.resources (author_id, kind, title, image_path)
     values ('11111111-1111-1111-1111-111111111111', 'picture', 'No dimensions',
-            '11111111-1111-1111-1111-111111111111/f2.jpg')$$,
+            '11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000010.jpg')$$,
   '23514',
   null,
   'an image path with no dimensions is refused'
@@ -973,7 +973,7 @@ select lives_ok(
   $$insert into public.resources
       (author_id, kind, title, image_path, image_width, image_height)
     values ('11111111-1111-1111-1111-111111111111', 'picture', 'A whole picture',
-            '11111111-1111-1111-1111-111111111111/f3.jpg', 1600, 1200)$$,
+            '11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000011.jpg', 1600, 1200)$$,
   'a path with both dimensions is accepted'
 );
 
@@ -984,6 +984,81 @@ select lives_ok(
     values ('11111111-1111-1111-1111-111111111111', 'picture', 'Still no image')$$,
   'a picture share with no image at all is still accepted'
 );
+
+-- ---------------------------------------------------------------------------
+-- Whose picture a share may show.
+--
+-- The storage policies stop a member writing a file into someone else's
+-- folder, but a share only *names* its file. Without a rule on the row, a
+-- member skipping the app could post — or edit their own share into — a
+-- picture that points at another member's photo, which then appears on the
+-- page as theirs. `createResource` checks this, but an action is not the gate:
+-- anyone with a session can write to `resources` directly, and RLS on it asks
+-- only about `author_id`. So the database checks it too.
+-- ---------------------------------------------------------------------------
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+
+select throws_ok(
+  $$insert into public.resources
+      (author_id, kind, title, image_path, image_width, image_height)
+    values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'picture', 'Not my photo',
+            '11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000001.jpg',
+            800, 600)$$,
+  '23514',
+  null,
+  'member cannot post a share showing another member''s picture'
+);
+
+-- Starts with their own id, and walks out of it. The storage API does not
+-- resolve `..`, so this names nothing — but a rule that only compared the first
+-- segment would store it.
+select throws_ok(
+  $$insert into public.resources
+      (author_id, kind, title, image_path, image_width, image_height)
+    values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'picture', 'Sideways',
+            'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/../11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000001.jpg',
+            800, 600)$$,
+  '23514',
+  null,
+  'member cannot store an image path that leaves their own folder'
+);
+
+select throws_ok(
+  $$insert into public.resources
+      (author_id, kind, title, image_path, image_width, image_height)
+    values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'picture', 'A document',
+            'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000012.svg',
+            800, 600)$$,
+  '23514',
+  null,
+  'member cannot store an image path that is not a jpg, png or webp'
+);
+
+select lives_ok(
+  $$insert into public.resources
+      (id, author_id, kind, title, image_path, image_width, image_height)
+    values ('b0000000-0000-0000-0000-000000000001',
+            'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'picture', 'My own photo',
+            'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000013.jpg',
+            800, 600)$$,
+  'member may post a share showing a picture from their own folder'
+);
+
+-- The same trick after the fact: `resources_update_own` lets them edit their
+-- own share, and that must not include repointing it.
+select throws_ok(
+  $$update public.resources
+       set image_path = '11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000001.jpg'
+     where id = 'b0000000-0000-0000-0000-000000000001'$$,
+  '23514',
+  null,
+  'member cannot edit their share to show another member''s picture'
+);
+
+reset role;
 
 select * from finish();
 rollback;

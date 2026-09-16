@@ -23,9 +23,14 @@ export const IMAGE_BUCKET = "images";
  * storage policies compare against `auth.uid()`, which is why the shape is a
  * rule rather than a convention — a name that does not match it is not
  * something this app wrote.
+ *
+ * Lower-case only, and the same pattern as the `resources_image_path_own`
+ * constraint, which additionally requires the folder to be the row's author.
+ * An app that accepted a name the database refuses would turn a bypassed
+ * client's request into a logged insert failure instead of a clean refusal.
  */
 const OBJECT_NAME =
-  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/i;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
 
 /** Extension to what it is served as. Also the allowlist: the served type is
  *  derived from the name rather than echoed from whatever was stored. */
@@ -68,13 +73,13 @@ export function isImageObjectName(name: string): boolean {
  */
 export function imageObjectOwner(name: string): string | null {
   const match = OBJECT_NAME.exec(name);
-  return match ? match[1].toLowerCase() : null;
+  return match ? match[1] : null;
 }
 
 /** What to serve an object as, or null when the name is not one of ours. */
 export function imageContentType(name: string): string | null {
   const match = OBJECT_NAME.exec(name);
-  return match ? CONTENT_TYPES[match[2].toLowerCase()] : null;
+  return match ? CONTENT_TYPES[match[2]] : null;
 }
 
 /** A new object name for this member's upload. `fileId` is a fresh uuid. */
