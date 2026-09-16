@@ -98,11 +98,11 @@ $seed$;
 
 insert into public.profiles (id, name, role, status, is_admin, avatar_tint)
 values
-  ('11111111-1111-1111-1111-111111111111', 'Lisa Morrow',  'Circle keeper', 'approved', true,  '#6b7355'),
-  ('22222222-2222-2222-2222-222222222222', 'Ruth Adeyemi', 'Member',        'approved', false, '#8c8a6e'),
-  ('33333333-3333-3333-3333-333333333333', 'David Tran',   'Member',        'approved', false, '#9a8f7a'),
-  ('44444444-4444-4444-4444-444444444444', 'Marta Ibáñez', 'Member',        'approved', false, '#7e8466'),
-  ('55555555-5555-5555-5555-555555555555', 'Sam Okafor',   'Member',        'approved', false, '#8f8b73')
+  ('11111111-1111-1111-1111-111111111111', 'Lisa Morrow',  'Circle keeper', 'approved', true,  '#4f5b2b'),
+  ('22222222-2222-2222-2222-222222222222', 'Ruth Adeyemi', 'Member',        'approved', false, '#2d4668'),
+  ('33333333-3333-3333-3333-333333333333', 'David Tran',   'Member',        'approved', false, '#a95d4f'),
+  ('44444444-4444-4444-4444-444444444444', 'Marta Ibáñez', 'Member',        'approved', false, '#1d5b5d'),
+  ('55555555-5555-5555-5555-555555555555', 'Sam Okafor',   'Member',        'approved', false, '#8b5a87')
 on conflict (id) do update
   set name = excluded.name,
       role = excluded.role,

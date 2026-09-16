@@ -16,17 +16,32 @@ import { nameError } from "@/lib/validation";
  *
  * Six-digit lowercase hex, because that is exactly what the
  * `profiles_avatar_tint_hex` check constraint permits — the column feeds a CSS
- * `background`, so it is deliberately narrow. All six are dark enough for the
- * white initials `Avatar` draws on top, and they are the palette the seeded
- * members already use.
+ * `background`, so it is deliberately narrow.
+ *
+ * Chosen to be told apart at a glance, which the first palette was not: it was
+ * six olives and khakis, the closest two a CIE76 ΔE of 2.5 apart — about the
+ * smallest difference anyone notices — and four of them too light for the
+ * white initials `Avatar` draws on top. These six keep the site's earthy,
+ * muted character but sit at different hues *and* lightnesses, so they stay
+ * distinct for the one member in twelve or so with red–green colour
+ * blindness, where hue alone collapses:
+ *
+ * - closest pair, normal vision: ΔE 23 (Moss / Bark)
+ * - closest pair, simulated deuteranopia or protanopia: ΔE 12.8
+ * - every tint at least 4.5:1 against white, the WCAG AA bar for text
+ *
+ * Changing a value here orphans every profile that stored the old one — it
+ * still renders, but the picker no longer shows it as chosen. Move stored
+ * values in a migration alongside, as `20260916000005_distinct_avatar_tints`
+ * did for this palette.
  */
 export const AVATAR_TINTS = [
-  { value: "#6b7355", label: "Moss" },
-  { value: "#7e8466", label: "Fern" },
-  { value: "#8c8a6e", label: "Olive" },
-  { value: "#8f8b73", label: "Linen" },
-  { value: "#9a8f7a", label: "Clay" },
-  { value: "#7d7566", label: "Bark" },
+  { value: "#4f5b2b", label: "Moss" },
+  { value: "#1d5b5d", label: "Lake" },
+  { value: "#2d4668", label: "Dusk" },
+  { value: "#8b5a87", label: "Plum" },
+  { value: "#a95d4f", label: "Clay" },
+  { value: "#4b3a26", label: "Bark" },
 ] as const;
 
 export type AvatarTint = (typeof AVATAR_TINTS)[number]["value"];
