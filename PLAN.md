@@ -271,19 +271,15 @@ Still stubbed or missing:
   image columns, bucket and storage policies, and the constraint that a share
   may only name a picture from its author's own folder. Everything through Step
   5 has been pushed.
-- **The app's own email needs `RESEND_API_KEY` wherever it is deployed.**
-  Without it `lib/email.ts` logs instead of sending, so `/join` would not notify
-  anyone. Locally this is moot: `supabase start` catches every auth mail in
-  Mailpit.
-
-Done by hand in the hosted dashboard, reported by the user after Step 6 and not
-re-checked from here: the invite email template points at `/auth/confirm`, the
-auth redirect URLs are set, and Supabase Auth sends through Resend SMTP. The
-first two matter because `config.toml` describes the local stack and is never
-pushed; the third because Supabase's built-in sender throttles to a handful of
-messages an hour.
-
 - **Placeholder pages** — `/about` and `/admin` render `PlaceholderPage`.
+
+Done by hand, reported by the user after Step 6 and not re-checked from here:
+the hosted invite email template points at `/auth/confirm`, the auth redirect
+URLs are set, Supabase Auth sends through Resend SMTP, and `RESEND_API_KEY` is
+set for the app's own email (`/join`'s notification). The first two matter
+because `config.toml` describes the local stack and is never pushed; the SMTP
+switch because Supabase's built-in sender throttles to a handful of messages an
+hour.
 
 ---
 
