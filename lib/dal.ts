@@ -128,6 +128,37 @@ export const getSignedInMember = cache(async (): Promise<Member> => {
   return toMember(profile);
 });
 
+/** Who is looking at a public page, for choosing which links to offer. */
+export type Viewer = "member" | "signed-in" | "visitor";
+
+/**
+ * Whether a public page is being viewed by a member, by someone signed in who
+ * is not one, or by nobody in particular.
+ *
+ * **Never a gate.** It decides whether the landing page offers "Sign in" or
+ * "Home", and nothing more; every member page still calls `requireApproved()`
+ * and RLS still decides what comes back. That is also why it swallows a failed
+ * profile read where `getOwnProfile()` deliberately throws: there, a database
+ * error must not be mistaken for "not on the roster"; here, the worst a wrong
+ * answer does is show a member the "Sign in" link, and a public page should not
+ * fail to render because the database is asleep — which on the free tier it
+ * sometimes is.
+ *
+ * A visitor with no session costs nothing: `verifySession()` returns before any
+ * profile is read.
+ */
+export const getViewer = cache(async (): Promise<Viewer> => {
+  const session = await verifySession();
+  if (!session) return "visitor";
+  try {
+    const profile = await getOwnProfile();
+    return profile?.status === "approved" ? "member" : "signed-in";
+  } catch (error) {
+    console.warn("[dal] could not tell who is viewing a public page", error);
+    return "signed-in";
+  }
+});
+
 /** For admin-only surfaces (the inquiry queue, moderation, event management). */
 export const requireAdmin = cache(
   async (): Promise<Session & { profile: Profile }> => {

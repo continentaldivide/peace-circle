@@ -48,7 +48,9 @@ export function MemberNav({ user }: { user: Member }) {
     <header
       className={`flex flex-wrap items-center justify-between gap-x-5 gap-y-3 px-6 py-[22px] sm:px-14 ${NAV_BORDER}`}
     >
-      <Link href="/" className={WORDMARK}>
+      {/* Home, not "/": inside the circle the wordmark is the way back to
+          the member's own front page, not out to the public one. */}
+      <Link href="/home" className={WORDMARK}>
         <span className="text-accent">
           <RingMark size={22} rings={3} />
         </span>
