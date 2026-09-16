@@ -4,8 +4,13 @@ import { relativeRedirect, safeNext } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Where a magic link lands. Supabase sends the browser here with a one-time
- * `code`, which this exchanges for a session and writes to cookies.
+ * Where a magic link used to land, kept for links already sitting in inboxes.
+ * Sign-in emails now go to `/auth/confirm` (see there for why); nothing sends
+ * new links here, and once the last old one has expired — an hour after the
+ * change is deployed — this route can go.
+ *
+ * Supabase sends the browser here with a one-time `code`, which this exchanges
+ * for a session and writes to cookies.
  *
  * Note what this route does *not* do: decide whether the person is allowed in.
  * It only establishes who they are. Authorization happens one hop later, when

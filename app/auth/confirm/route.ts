@@ -5,22 +5,29 @@ import { relativeRedirect, safeNext } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Where an invite link lands.
+ * Where every emailed link lands: invites, and sign-in links.
  *
- * A separate route from `/auth/callback` because an invite is a different
- * thing arriving. A magic link is requested by the person themselves, from a
- * browser, so `@supabase/ssr` starts a PKCE exchange and the link comes back
- * carrying a one-time `code`. An invite is created by an admin calling
- * `inviteUserByEmail` — there is no browser in that request and so no PKCE
- * flow to complete. Supabase's own verify endpoint would resolve such a link
- * into an implicit-flow redirect, with the tokens in the URL *fragment*, which
- * is never sent to a server and so can never become a cookie here.
+ * Each email template hands this route a token hash directly, which
+ * `verifyOtp` turns into a session — the pattern Supabase's server-side auth
+ * guide prescribes. The alternative, Supabase's default links, go through its
+ * own `/auth/v1/verify` first, and that is wrong for both kinds of email:
  *
- * The fix is the one Supabase's server-side auth guide prescribes: point the
- * email template at our own route and hand it the token hash directly, which
- * `verifyOtp` turns into a session. See `supabase/templates/invite.html` for
- * the link, and note that the *hosted* project needs the same template set in
- * its dashboard — config.toml only describes the local stack.
+ * - An invite is created by an admin calling `inviteUserByEmail`, with no
+ *   browser and so no PKCE flow. Supabase's verify endpoint resolves such a
+ *   link into an implicit-flow redirect, with the tokens in the URL
+ *   *fragment*, which is never sent to a server and so can never become a
+ *   cookie here.
+ * - A sign-in link would work, but it points at `supabase.co` in mail sent
+ *   from our own domain, and spam filters read that mismatch as phishing. The
+ *   first real launch-code signup went to spam for it.
+ *
+ * A token hash also needs no PKCE verifier from the browser that asked, so a
+ * link requested on a laptop can be opened on a phone.
+ *
+ * See `supabase/templates/` for the links, and note that the *hosted* project
+ * needs the same templates set in its dashboard — config.toml only describes
+ * the local stack. `/auth/callback` remains only for sign-in links mailed
+ * before this route handled them.
  *
  * This route must also be a Route Handler rather than anything the /welcome
  * page does itself: establishing a session means writing cookies, and a server
@@ -36,8 +43,11 @@ import { createClient } from "@/lib/supabase/server";
  * The link types this app actually sends. Narrow on purpose: `type` comes out
  * of the URL, and there is no reason to let a hand-made link drive a flow we
  * never mail anybody, such as a password recovery in an app with no passwords.
+ *
+ * `email` covers both sign-in emails, "Magic Link" and "Confirm signup":
+ * Supabase picks which one to send, and verifies either under this type.
  */
-const ACCEPTED: readonly EmailOtpType[] = ["invite", "magiclink"];
+const ACCEPTED: readonly EmailOtpType[] = ["invite", "email"];
 
 function accepted(type: string | null): type is EmailOtpType {
   return !!type && (ACCEPTED as readonly string[]).includes(type);
@@ -72,6 +82,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Sign-in links always carry `next`, so this fallback is an invite's.
   // /welcome rather than /home: an invited person still has a name to confirm
   // and a tint to choose. Their profile already exists and is approved, so
   // /welcome shows them the finish step and nothing else.

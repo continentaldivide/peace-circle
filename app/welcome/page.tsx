@@ -14,7 +14,7 @@ import { redeemLaunchCode } from "@/lib/onboarding";
  *
  * A launch code arrives as `?code=`, and the visit happens twice: once before
  * signing in, to collect a name and send a magic link, and once after, with
- * the code carried back through the callback's `next` parameter. The second
+ * the code carried back through `/auth/confirm`'s `next` parameter. The second
  * visit is the one that redeems.
  *
  * Redeeming during a render is worth being deliberate about, since a GET that

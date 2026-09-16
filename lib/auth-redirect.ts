@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 /**
  * The two things both email-link landing routes have to get right.
  *
- * `/auth/callback` handles the magic link's PKCE code and `/auth/confirm`
- * handles an invite's token hash, but each one ends the same way: a session
+ * `/auth/confirm` handles an emailed link's token hash and `/auth/callback`
+ * an older magic link's PKCE code, but each one ends the same way: a session
  * has just been written to cookies, and the next thing that happens is a
  * redirect to a path that came out of a URL. Getting either half wrong hands
  * that session to somebody else, so they live in one place.

@@ -1,0 +1,33 @@
+<!--
+  The sign-in email for an address Supabase already knows. Its sibling,
+  confirmation.html, is the same email for an address it has never seen; which
+  one goes out is Supabase's decision, not ours, so the two links must match.
+
+  The link goes straight to this site rather than through Supabase's own
+  /auth/v1/verify (the default .ConfirmationURL). A link to a different domain from
+  the one the mail is sent from is a spam signal, and the first launch-code
+  signup landed in spam for it.
+
+  .RedirectTo is the `emailRedirectTo` the app passed, which is always
+  /auth/confirm with a `next` already in its query — hence `&` rather than `?`.
+  Supabase swaps it for the Site URL when it is not on the redirect allow list,
+  and this link breaks if that happens, so keep the allow list current.
+
+  THE HOSTED PROJECT NEEDS THE SAME LINK. config.toml describes the local
+  stack and is never pushed, so the "Magic Link" template in the Supabase
+  dashboard has to be edited by hand to match.
+-->
+<h2>Your way into the Peace Circle</h2>
+
+<p>Follow the link below to sign in. There is no password to remember.</p>
+
+<p>
+  <a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=email"
+    >Step into the circle</a
+  >
+</p>
+
+<p>
+  The link works once and is good for one hour. If you didn&rsquo;t ask for it,
+  you can ignore this email and nothing happens.
+</p>
