@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Composer } from "@/components/library/composer";
 import { FilterBar } from "@/components/library/filter-bar";
-import type { AuthorInfo } from "@/components/library/kinds";
+import { KIND_FILTERS, type AuthorInfo } from "@/components/library/kinds";
 import { ResourceCard } from "@/components/library/resource-card";
 import { ResourceDetail } from "@/components/library/resource-detail";
 import { SearchBox } from "@/components/library/search-box";
@@ -73,6 +73,10 @@ export function LibraryView({
 
   const shown =
     filter === "all" ? resources : resources.filter((r) => r.kind === filter);
+  // "books", "pictures" — the chip's own word, for saying which kind is empty.
+  const kindLabel = (
+    KIND_FILTERS.find((k) => k.id === filter)?.label ?? "shares"
+  ).toLowerCase();
   const openRes = resources.find((r) => r.id === openId) ?? null;
 
   // The share is already saved and already in `resources` by the time this
@@ -117,11 +121,29 @@ export function LibraryView({
             <span className="text-accent">
               <RingMark size={44} rings={4} />
             </span>
-            {/* A search that found nothing is not an empty Library, and saying
-                "share the first one" to someone who mistyped a name would be
-                wrong. Step 7 designs the empty states; this much is here
-                because searching is what makes the second one reachable. */}
-            {query ? (
+            {/* Three different nothings, told apart by *where* the list
+                emptied. `resources` is what the database returned for the
+                query; `shown` is that after the kind chip. If the query found
+                shares and the chip hid them all, saying "nothing matches" would
+                send the member away from results that exist — so that case
+                names the kind and offers the way back to them. Step 7 designs
+                the empty states; these are here because search and the chips
+                together are what make them reachable. */}
+            {resources.length > 0 ? (
+              <p className="font-body text-[15px] text-ink-soft">
+                {query
+                  ? `No ${kindLabel} match “${query}”.`
+                  : `No ${kindLabel} here yet.`}{" "}
+                <button
+                  onClick={() => setFilter("all")}
+                  className="cursor-pointer font-medium text-accent"
+                >
+                  {query
+                    ? `Show all ${resources.length} ${resources.length === 1 ? "result" : "results"}.`
+                    : "Show everything."}
+                </button>
+              </p>
+            ) : query ? (
               <p className="font-body text-[15px] text-ink-soft">
                 Nothing in the Library matches “{query}”.{" "}
                 <Link
