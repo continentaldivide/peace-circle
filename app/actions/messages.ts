@@ -23,6 +23,15 @@ export async function loadOlderMessages(cursor: string): Promise<MessagePage> {
 }
 
 /**
+ * The newest page of Circle history, re-read by the chat each time its live
+ * connection opens — Realtime does not replay what was said while it was down.
+ * Gated the same way as `loadOlderMessages`, by `getMessages()`.
+ */
+export async function loadNewestMessages(): Promise<MessagePage> {
+  return getMessages();
+}
+
+/**
  * Say something to the circle.
  *
  * The author is the session's, never the caller's: `messages_insert_own`
@@ -34,7 +43,8 @@ export async function loadOlderMessages(cursor: string): Promise<MessagePage> {
  * chat is the one list the server does not own: it accumulates older pages in
  * the browser as the member scrolls, so a re-render cannot replace it. The
  * saved row goes back to the caller instead, which swaps it for the message
- * drawn on send (see `lib/chat.ts`).
+ * drawn on send (see `lib/chat.ts`). Everyone else in the circle hears it
+ * through Realtime (see `lib/live-messages.ts`).
  */
 export async function sendMessage(draft: string): Promise<SendResult> {
   const { userId } = await requireApproved();
