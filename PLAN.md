@@ -217,7 +217,9 @@ Still stubbed or missing:
 ## The plan
 
 Eight steps, ordered so each rests on the last. Steps 1–3 are the risky part;
-after that it's filling in features behind a working gate.
+after that it's filling in features behind a working gate. One idea sits past
+the end of them, in "After launch" — deliberately not a ninth step, because
+nothing in the eight waits on it.
 
 ### Step 1 — Hosted Supabase project
 
@@ -351,6 +353,46 @@ The chat keeps its optimistic send, so it stays feeling like a group text.
 - Set up the two free-tier chores: the weekly keep-alive ping and the scheduled
   `pg_dump` backup.
 - Onboard members.
+
+### After launch — book covers from Google Books
+
+Not part of the eight steps, and not a prerequisite for any of them. A book
+share is a title, an author, and a note, and it looks thinner in the Library
+than a quote or a picture does. When a member types a title in the composer,
+the app could ask the Google Books API what it knows, offer the covers it finds,
+and let them pick one.
+
+**This is additive.** A book share with no cover has to keep working exactly as
+it does today — the same fields, the same card, the same rules about what may be
+posted. Every book already in the Library has no cover and never will unless
+someone goes back and edits it, so "no cover" is the normal case, not the
+degraded one. If that stops being true while building it, the feature has grown
+past what it was for.
+
+Three things are open, and whoever picks this up should settle them first:
+
+- **Where the lookup runs.** It is a suggestion, not a mutation, and Server
+  Actions dispatch one at a time per client — so an action fired per keystroke
+  would queue behind the member's real writes. The Next.js guide on backends for
+  the front end (`02-guides/backend-for-frontend.md`) points at a Route Handler
+  for exactly this shape of request. Debouncing is a given either way.
+- **What picking a cover stores.** A Google URL is a hotlink: the image is
+  served by someone else's host, on their terms, for as long as they choose to.
+  Copying it into our own bucket avoids that, but then `image_path` carries two
+  different kinds of thing — a photo a member took and a cover we fetched — or
+  the schema needs another column, which brings everything in `AGENTS.md` about
+  regenerating types with the migration. Whoever builds it will also want what
+  Step 6 settled about the bucket: it is private, and an object is reached
+  through the app rather than by its own URL. That is the main reason this comes
+  after Step 6 rather than beside it.
+- **What to verify before building.** The `volumes` endpoint
+  (`https://www.googleapis.com/books/v1/volumes?q=intitle:…`) is _said_ to
+  answer without a key for light use, rate-limited by IP, with covers under
+  `volumeInfo.imageLinks`. None of that has been checked. The current terms of
+  use, whether attribution is required, and what the returned URLs actually look
+  like — some are `http`, which both `next/image` and a content-security policy
+  will object to — are for whoever builds it to confirm against Google's own
+  documentation rather than against this paragraph.
 
 ### Testing
 
