@@ -8,10 +8,13 @@ import {
   useState,
 } from "react";
 
+import { sendMessage } from "@/app/actions/messages";
 import { Avatar } from "@/components/avatar";
 import type { AuthorInfo } from "@/components/library/kinds";
+import { isPending, PENDING_ID_PREFIX } from "@/lib/chat";
 import type { Member, Message, MessagePage } from "@/lib/data";
 import { circleDate, formatDayLabel, formatTime } from "@/lib/time";
+import { trimmedBody } from "@/lib/validation";
 
 /** Fixed height of the chat card, so new messages scroll rather than grow it. */
 const CHAT_HEIGHT = "h-[750px]";
@@ -30,15 +33,20 @@ function Bubble({
   message,
   author,
   me,
+  pending,
 }: {
   message: Message;
   author: AuthorInfo;
   /** Sent by the signed-in member, so drawn on the right in the accent. */
   me: boolean;
+  /** Drawn but not yet saved, so faded until the database confirms it. */
+  pending: boolean;
 }) {
   return (
     <div
-      className={`flex items-start gap-[11px] ${me ? "flex-row-reverse" : ""}`}
+      className={`flex items-start gap-[11px] ${me ? "flex-row-reverse" : ""} ${
+        pending ? "opacity-60" : ""
+      }`}
     >
       <Avatar person={author} size={34} />
       <div
@@ -75,6 +83,11 @@ function Bubble({
  * It opens on the newest page (pinned to the bottom) and fetches older pages
  * via `loadOlder` as the member scrolls toward the top, prepending each batch
  * while holding the viewport on the same message.
+ *
+ * This list is the browser's, not the server's: `initialPage` seeds it once and
+ * older pages accumulate on top, so a re-rendered Home cannot replace it. A
+ * sent message is therefore drawn here first and reconciled with the row the
+ * database saves — which is also what stops it appearing twice.
  */
 export function CircleChat({
   initialPage,
@@ -103,6 +116,9 @@ export function CircleChat({
   // against a database that is already failing.
   const [loadFailed, setLoadFailed] = useState(false);
   const [draft, setDraft] = useState("");
+  // Why the last send did not land. Cleared on the next attempt, not on a
+  // timer: a message that never reached the circle should stay said so.
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const topSentinel = useRef<HTMLDivElement>(null);
@@ -180,21 +196,62 @@ export function CircleChat({
     setLoadFailed(false);
   }
 
-  function send(e: React.FormEvent) {
+  /**
+   * Take back a message that never reached the database, and hand the member
+   * their words instead of a bubble nobody else will ever see. The draft is
+   * restored only if the box is still empty — they may have started typing the
+   * next thing while this one was in flight.
+   */
+  function unsend(pendingId: string, body: string, why: string) {
+    setMessages((prev) => prev.filter((m) => m.id !== pendingId));
+    setDraft((current) => (current === "" ? body : current));
+    setSendError(why);
+  }
+
+  async function send(e: React.FormEvent) {
     e.preventDefault();
-    const body = draft.trim();
+    const body = trimmedBody(draft);
     if (!body) return;
+
+    // Drawn first, sent second. This is a group text: waiting on a round trip
+    // before the bubble appears is what makes one feel broken.
+    const pendingId = `${PENDING_ID_PREFIX}${crypto.randomUUID()}`;
     stickBottom.current = true;
     setMessages((prev) => [
       ...prev,
       {
-        id: "msg" + Date.now(),
+        id: pendingId,
         authorId: user.id,
+        // The browser's clock, for the second or two before the database's own
+        // created_at replaces it. The page's `now` would be worse: it is the
+        // instant the page rendered, which may be an hour ago by now. Nothing
+        // hydrates against this — the bubble is created after the fact, in the
+        // browser, so there is no server render to disagree with.
         createdAt: new Date().toISOString(),
         body,
       },
     ]);
     setDraft("");
+    setSendError(null);
+
+    try {
+      const result = await sendMessage(body);
+      if (result.status === "error") {
+        unsend(pendingId, body, result.formError);
+        return;
+      }
+      // The saved row takes the drawn one's place — same position in the list,
+      // but now with the id and created_at the database assigned. Replacing
+      // rather than appending is what keeps one message from showing twice.
+      setMessages((prev) =>
+        prev.map((m) => (m.id === pendingId ? result.message : m)),
+      );
+    } catch (error) {
+      // A dispatch that never made it to the action at all: offline, or a
+      // build whose action ids have rotated out from under this tab.
+      console.warn("[chat] could not send a message", error);
+      unsend(pendingId, body, "That didn't send. Please try again.");
+    }
   }
 
   return (
@@ -246,24 +303,32 @@ export function CircleChat({
               message={m}
               author={lookup(m.authorId)}
               me={m.authorId === user.id}
+              pending={isPending(m)}
             />
           </div>
         ))}
       </div>
 
-      <form
-        onSubmit={send}
-        className="flex items-center gap-2.5 border-t border-line px-4 py-3.5"
-      >
-        <Avatar person={user} size={30} />
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Message the circle…"
-          aria-label="Message the circle"
-          className="flex-1 rounded-chip border border-line-strong bg-bg px-4 py-2.5 font-body text-[14.5px] text-ink outline-none transition-colors placeholder:text-faint focus:border-accent"
-        />
-      </form>
+      <div className="flex-none border-t border-line">
+        {sendError ? (
+          <p
+            role="alert"
+            className="px-4 pt-2.5 font-body text-[12.5px] text-warn"
+          >
+            {sendError}
+          </p>
+        ) : null}
+        <form onSubmit={send} className="flex items-center gap-2.5 px-4 py-3.5">
+          <Avatar person={user} size={30} />
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Message the circle…"
+            aria-label="Message the circle"
+            className="flex-1 rounded-chip border border-line-strong bg-bg px-4 py-2.5 font-body text-[14.5px] text-ink outline-none transition-colors placeholder:text-faint focus:border-accent"
+          />
+        </form>
+      </div>
     </div>
   );
 }

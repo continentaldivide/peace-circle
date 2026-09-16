@@ -51,6 +51,13 @@ export async function finishProfile(
     .eq("id", userId);
 
   if (error) {
+    // The member sees one sentence, so this line is the only record that a
+    // profile was not finished — and the only way to tell a transient failure
+    // apart from a drift between validateProfile and the column constraints,
+    // which names itself in the code.
+    console.error(
+      `[welcome] could not finish profile ${userId}: ${error.code} ${error.message}`,
+    );
     return {
       status: "error",
       formError:

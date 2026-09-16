@@ -28,7 +28,7 @@ export default async function HomePage() {
     <HomeView
       user={user}
       now={now}
-      initialResources={resources}
+      resources={resources}
       members={members}
       messagePage={messagePage}
       events={events}

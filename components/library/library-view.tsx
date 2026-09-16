@@ -17,16 +17,20 @@ type Filter = ResourceKind | "all";
 export function LibraryView({
   user,
   now,
-  initialResources,
+  resources,
   members,
 }: {
   user: Member;
   /** ISO instant the page was rendered at; see `lib/time.ts`. */
   now: string;
-  initialResources: Resource[];
+  /**
+   * The Library as the server has it. Not copied into state: a new share or
+   * comment ends in `refresh()`, which re-renders this page and arrives as new
+   * props — a copy seeded once would keep showing the list as it was.
+   */
+  resources: Resource[];
   members: Member[];
 }) {
-  const [resources, setResources] = useState<Resource[]>(initialResources);
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
@@ -62,31 +66,11 @@ export function LibraryView({
     filter === "all" ? resources : resources.filter((r) => r.kind === filter);
   const openRes = resources.find((r) => r.id === openId) ?? null;
 
-  function addResource(r: Resource) {
-    setResources((prev) => [r, ...prev]);
+  // The share is already saved and already in `resources` by the time this
+  // runs — the composer calls it with the re-rendered page in hand.
+  function openCreated(id: string) {
     setComposing(false);
-    setOpenId(r.id);
-  }
-
-  function addComment(id: string, body: string) {
-    setResources((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              comments: [
-                ...r.comments,
-                {
-                  id: "c" + Date.now(),
-                  authorId: user.id,
-                  createdAt: new Date().toISOString(),
-                  body,
-                },
-              ],
-            }
-          : r,
-      ),
-    );
+    setOpenId(id);
   }
 
   return (
@@ -151,13 +135,11 @@ export function LibraryView({
         now={now}
         lookup={lookup}
         onClose={() => setOpenId(null)}
-        onAddComment={addComment}
       />
       <Composer
         open={composing}
-        user={user}
         onClose={() => setComposing(false)}
-        onCreate={addResource}
+        onCreated={openCreated}
       />
     </>
   );

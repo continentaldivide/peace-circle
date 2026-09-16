@@ -9,8 +9,10 @@ import {
   toCircleEvent,
   toMember,
   toResource,
+  toResourceInsert,
   type ResourceRow,
 } from "@/lib/data/rows";
+import { emptyResourceDraft, type ResourceDraft } from "@/lib/resources";
 
 const LISA = "11111111-1111-1111-1111-111111111111";
 
@@ -175,5 +177,83 @@ describe("toCircleEvent", () => {
       date: "2026-08-16",
       startsAt: "2026-08-17T00:30:00+00:00",
     });
+  });
+});
+
+describe("toResourceInsert", () => {
+  const author = { id: LISA, name: "Lisa Morrow" };
+
+  function draft(fields: Partial<ResourceDraft>): ResourceDraft {
+    return { ...emptyResourceDraft, ...fields };
+  }
+
+  test("every kind's free text goes to body, and an empty box to null", () => {
+    expect(
+      toResourceInsert(
+        draft({ kind: "picture", title: "Candles", note: "After the circle" }),
+        author,
+      ).body,
+    ).toBe("After the circle");
+    expect(
+      toResourceInsert(
+        draft({ kind: "picture", title: "Candles", note: "  " }),
+        author,
+      ).body,
+    ).toBeNull();
+  });
+
+  test("an unattributed quote is credited to the member passing it along", () => {
+    expect(
+      toResourceInsert(draft({ kind: "quote", quote: "Begin again." }), author)
+        .attribution,
+    ).toBe("— shared by Lisa Morrow");
+    expect(
+      toResourceInsert(
+        draft({ kind: "quote", quote: "Begin again.", attribution: "— Rumi" }),
+        author,
+      ).attribution,
+    ).toBe("— Rumi");
+  });
+
+  test("a link is stored with the scheme the composer filled in", () => {
+    expect(
+      toResourceInsert(
+        draft({ kind: "link", title: "A reading", url: "example.com/a" }),
+        author,
+      ).url,
+    ).toBe("https://example.com/a");
+  });
+
+  test("a book with no author named still satisfies the not-null column", () => {
+    expect(
+      toResourceInsert(
+        draft({ kind: "book", title: "Peace Is Every Step" }),
+        author,
+      ).book_author,
+    ).toBe("Unknown");
+  });
+
+  test("a kind carries only its own columns, not what an abandoned chip left behind", () => {
+    const abandoned = draft({
+      kind: "quote",
+      quote: "Begin again.",
+      title: "A reading",
+      url: "example.com",
+      bookAuthor: "Someone",
+    });
+    expect(toResourceInsert(abandoned, author)).toEqual({
+      author_id: LISA,
+      kind: "quote",
+      quote: "Begin again.",
+      attribution: "— shared by Lisa Morrow",
+      body: null,
+    });
+  });
+
+  test("the author is the caller's, never the draft's", () => {
+    expect(
+      toResourceInsert(draft({ kind: "picture", title: "Candles" }), author)
+        .author_id,
+    ).toBe(LISA);
   });
 });

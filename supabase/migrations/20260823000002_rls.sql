@@ -46,7 +46,9 @@ create policy profiles_admin_all on public.profiles
   with check (public.is_admin());
 
 -- Deliberately no INSERT policy: profiles are created only by the bootstrap
--- trigger or by the invite/redemption flows running with the secret key.
+-- trigger, by `redeem_launch_code()` — a security definer function, added in
+-- its own migration — or by the invite flow, which runs server-side with the
+-- secret key.
 
 -- Stop a member from promoting themselves by PATCHing their own profile.
 --
@@ -120,7 +122,7 @@ create policy inquiries_admin_delete on public.inquiries
   using (public.is_admin());
 
 -- ---------------------------------------------------------------------------
--- launch_codes — admin-only; redemption runs server-side with the secret key
+-- launch_codes — admin-only; redemption is a security definer function
 -- ---------------------------------------------------------------------------
 
 create policy launch_codes_admin_all on public.launch_codes

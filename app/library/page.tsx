@@ -20,7 +20,7 @@ export default async function LibraryPage() {
     <LibraryView
       user={user}
       now={now}
-      initialResources={resources}
+      resources={resources}
       members={members}
     />
   );

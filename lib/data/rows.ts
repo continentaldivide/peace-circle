@@ -1,3 +1,5 @@
+import type { ResourceDraft } from "@/lib/resources";
+import { normalizeUrl } from "@/lib/resources";
 import type {
   CircleEvent,
   Comment,
@@ -10,12 +12,13 @@ import { circleDate } from "@/lib/time";
 import { initialsFor } from "@/lib/utils";
 
 /**
- * Where database rows become the shapes components use.
+ * Where database rows become the shapes components use, and back again.
  *
- * Column names stop here: components see `tint`, never `avatar_tint`. Kept
- * apart from `index.ts` so `lib/dal.ts` can share these mappers without the
- * two modules importing each other, and pure so they can be tested without a
- * database.
+ * Column names stop here: components see `tint`, never `avatar_tint`, and a
+ * composed share becomes columns in `toResourceInsert` rather than in the
+ * action that writes it. Kept apart from `index.ts` so `lib/dal.ts` can share
+ * these mappers without the two modules importing each other, and pure so they
+ * can be tested without a database.
  */
 
 type Tables = Database["public"]["Tables"];
@@ -122,6 +125,75 @@ export function toResource(row: ResourceRow): Resource {
         kind: "book",
         title: required(row.title, "title", row),
         bookAuthor: required(row.book_author, "book_author", row),
+        body,
+      };
+  }
+}
+
+/** A new share, as the columns it is stored in. */
+export type ResourceInsert = Tables["resources"]["Insert"];
+
+/**
+ * The write half of `toResource`: a composed draft as a row.
+ *
+ * The four kinds share one table and each fills a different subset of its
+ * columns — which is the `resources_kind_shape` check constraint's business,
+ * so it is settled here rather than in the action. Everything a kind has no
+ * field for is simply left out, so a url typed under the Link chip cannot ride
+ * along on a quote the member changed their mind into.
+ *
+ * `image_path` is nobody's yet: the composer's drop zone is decorative and
+ * real uploads are Step 6.
+ */
+export function toResourceInsert(
+  draft: ResourceDraft,
+  author: { id: string; name: string },
+): ResourceInsert {
+  // Every kind's free text shares one column, and an empty box is nothing to
+  // store rather than an empty string to render.
+  const body = draft.note.trim() || null;
+
+  switch (draft.kind) {
+    case "quote":
+      return {
+        author_id: author.id,
+        kind: "quote",
+        quote: draft.quote.trim(),
+        // Stored with whatever dash was typed, because `toResource` renders it
+        // as written. Unattributed lines are credited to the member passing
+        // them along — from the session's name, not the browser's word for it.
+        attribution: draft.attribution.trim() || `— shared by ${author.name}`,
+        body,
+      };
+    case "link": {
+      // Validated before this is reached, so null here would mean
+      // `validateResource` and this mapper disagree — worth failing over
+      // rather than storing an address that goes nowhere.
+      const url = normalizeUrl(draft.url);
+      if (!url) throw new Error("A link reached the insert with no address");
+      return {
+        author_id: author.id,
+        kind: "link",
+        title: draft.title.trim(),
+        url,
+        body,
+      };
+    }
+    case "picture":
+      return {
+        author_id: author.id,
+        kind: "picture",
+        title: draft.title.trim(),
+        body,
+      };
+    case "book":
+      return {
+        author_id: author.id,
+        kind: "book",
+        title: draft.title.trim(),
+        // The column is not null and the composer does not insist on the
+        // field, so an unnamed author is stored as the card already reads.
+        book_author: draft.bookAuthor.trim() || "Unknown",
         body,
       };
   }

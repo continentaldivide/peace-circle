@@ -1,105 +1,129 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
+import { createResource } from "@/app/actions/resources";
 import { KIND_LABELS } from "@/components/library/kinds";
 import { RingMark } from "@/components/ring-mark";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
 import { Sheet, SheetClose } from "@/components/ui/sheet";
+import type { ResourceKind } from "@/lib/data";
+import type { ResourceDraft, ResourceField } from "@/lib/resources";
+import {
+  emptyResourceDraft,
+  isComplete,
+  RESOURCE_FIELDS,
+  validateResource,
+} from "@/lib/resources";
 import { cn } from "@/lib/utils";
-import type { Comment, Member, Resource, ResourceKind } from "@/lib/data";
 
 const COMPOSE_KINDS: ResourceKind[] = ["quote", "link", "picture", "book"];
 
-type Fields = Record<string, string>;
+/** Every field revealed at once, for the moment someone presses Share. */
+const ALL_TOUCHED = Object.fromEntries(
+  RESOURCE_FIELDS.map((field) => [field, true]),
+) as Record<ResourceField, boolean>;
 
+/**
+ * "Share with the circle" — the composer sheet, on Home and in the Library.
+ *
+ * The post goes to the database through `createResource`, which answers with
+ * the new share's id and re-renders the page around it. Both happen inside one
+ * transition, so the sheet closes onto a Library that already has the row in
+ * it rather than onto a frame of empty detail.
+ *
+ * `validateResource` is the same function the action runs, so the two cannot
+ * disagree about what may be posted.
+ */
 export function Composer({
   open,
-  user,
   onClose,
-  onCreate,
+  onCreated,
 }: {
   open: boolean;
-  user: Member;
   onClose: () => void;
-  onCreate: (r: Resource) => void;
+  /** The new share's id, once the database has it. */
+  onCreated: (id: string) => void;
 }) {
-  const [kind, setKind] = useState<ResourceKind>("quote");
-  const [f, setF] = useState<Fields>({});
+  const [draft, setDraft] = useState<ResourceDraft>(emptyResourceDraft);
+  const [touched, setTouched] = useState<
+    Partial<Record<ResourceField, boolean>>
+  >({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const errors = validateResource(draft);
+
+  // A field's error stays hidden until they have left it once, so the sheet
+  // does not scold someone for a half-typed address as they go.
+  const shownError = (field: ResourceField) =>
+    touched[field] ? errors[field] : undefined;
 
   const set =
-    (key: string) =>
+    (field: ResourceField) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-      setF((prev) => ({ ...prev, [key]: e.target.value }));
+      setDraft((prev) => ({ ...prev, [field]: e.target.value }));
 
-  const t = (key: string) => (f[key] || "").trim();
+  const blur = (field: ResourceField) => () =>
+    setTouched((prev) => ({ ...prev, [field]: true }));
 
-  const canPost = (() => {
-    switch (kind) {
-      case "quote":
-        return t("quote").length > 3;
-      case "link":
-        return !!t("title") && !!t("url");
-      case "picture":
-      case "book":
-        return !!t("title");
-    }
-  })();
+  const fieldClass = (field: ResourceField) =>
+    cn(
+      inputClass,
+      shownError(field) &&
+        "border-warn ring-2 ring-warn-soft focus:border-warn",
+    );
+
+  function pickKind(kind: ResourceKind) {
+    setDraft((prev) => ({ ...prev, kind }));
+    // The next kind asks different questions; a complaint about the last
+    // one's should not still be on screen.
+    setTouched({});
+    setFormError(null);
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canPost) return;
-    const base = {
-      id: "r" + Date.now(),
-      authorId: user.id,
-      createdAt: new Date().toISOString(),
-      comments: [] as Comment[],
-    };
+    if (pending) return;
 
-    let r: Resource;
-    switch (kind) {
-      case "quote":
-        r = {
-          ...base,
-          kind,
-          quote: t("quote"),
-          attribution: t("attribution") || `— shared by ${user.name}`,
-          note: t("note") || undefined,
-        };
-        break;
-      case "link":
-        r = {
-          ...base,
-          kind,
-          title: t("title"),
-          url: t("url"),
-          body: t("note"),
-        };
-        break;
-      case "picture":
-        r = {
-          ...base,
-          kind,
-          title: t("title"),
-          caption: t("note") || undefined,
-          placeholder: "photo — " + t("title").toLowerCase(),
-        };
-        break;
-      case "book":
-        r = {
-          ...base,
-          kind,
-          title: t("title"),
-          bookAuthor: t("bookAuthor") || "Unknown",
-          body: t("note"),
-        };
-        break;
+    // Whatever the server said last time was about the last attempt. Cleared
+    // here rather than only on success, so it does not sit above a field
+    // complaint, or above "Sharing…" while this attempt is still in flight.
+    setFormError(null);
+
+    if (Object.keys(errors).length > 0) {
+      // Nothing is sent, so there is no round trip to lose — show every
+      // outstanding problem at once instead.
+      setTouched(ALL_TOUCHED);
+      return;
     }
 
-    onCreate(r);
-    setF({});
-    setKind("quote");
+    startTransition(async () => {
+      // Caught rather than allowed to escape: an error thrown out of an async
+      // transition goes to the nearest error boundary, and a dispatch that
+      // never reached the action — offline, or a 500 — would take the page
+      // down and the half-written share with it.
+      let result;
+      try {
+        result = await createResource(draft);
+      } catch (error) {
+        console.warn("[resources] could not post a share", error);
+        setFormError("That didn't save. Please try again.");
+        return;
+      }
+
+      if (result.status === "error") {
+        setFormError(result.formError);
+        return;
+      }
+
+      // Inside the transition, so this lands together with the re-rendered
+      // page the action sent back with it.
+      onCreated(result.id);
+      setDraft(emptyResourceDraft);
+      setTouched({});
+    });
   }
 
   return (
@@ -118,10 +142,10 @@ export function Composer({
             <button
               key={k}
               type="button"
-              onClick={() => setKind(k)}
+              onClick={() => pickKind(k)}
               className={cn(
                 "cursor-pointer rounded-chip border px-3.5 py-1.5 font-body text-[13px] font-medium transition-colors",
-                kind === k
+                draft.kind === k
                   ? "border-accent bg-accent text-accent-ink"
                   : "border-line-strong bg-surface text-ink-soft hover:text-ink",
               )}
@@ -131,27 +155,29 @@ export function Composer({
           ))}
         </div>
 
-        <form onSubmit={submit} className="mt-5 flex flex-col gap-4">
+        <form onSubmit={submit} noValidate className="mt-5 flex flex-col gap-4">
           {/* The fields swap per kind and each kind is a different height, so
               the sheet used to grow and shrink under the chips — making them
               jump away mid-click. Reserving the tallest variant's height keeps
               the chips still. The tallest is "picture": a ~143px drop zone plus
               two fields. Re-measure if a kind gains or loses a field. */}
           <div className="flex min-h-[320px] flex-col gap-4">
-            {kind === "quote" ? (
+            {draft.kind === "quote" ? (
               <>
-                <Field label="The quote">
+                <Field label="The quote" error={shownError("quote")}>
                   <textarea
                     rows={3}
-                    value={f.quote || ""}
+                    value={draft.quote}
                     onChange={set("quote")}
+                    onBlur={blur("quote")}
+                    aria-invalid={!!shownError("quote")}
                     placeholder="A line worth keeping…"
-                    className={`${inputClass} resize-none`}
+                    className={cn(fieldClass("quote"), "resize-none")}
                   />
                 </Field>
                 <Field label="Who said it" hint="(optional)">
                   <input
-                    value={f.attribution || ""}
+                    value={draft.attribution}
                     onChange={set("attribution")}
                     placeholder="— name or source"
                     className={inputClass}
@@ -159,7 +185,7 @@ export function Composer({
                 </Field>
                 <Field label="Why it stayed with you" hint="(optional)">
                   <input
-                    value={f.note || ""}
+                    value={draft.note}
                     onChange={set("note")}
                     placeholder="A short note"
                     className={inputClass}
@@ -168,27 +194,31 @@ export function Composer({
               </>
             ) : null}
 
-            {kind === "link" ? (
+            {draft.kind === "link" ? (
               <>
-                <Field label="Title">
+                <Field label="Title" error={shownError("title")}>
                   <input
-                    value={f.title || ""}
+                    value={draft.title}
                     onChange={set("title")}
+                    onBlur={blur("title")}
+                    aria-invalid={!!shownError("title")}
                     placeholder="What is it?"
-                    className={inputClass}
+                    className={fieldClass("title")}
                   />
                 </Field>
-                <Field label="Web address">
+                <Field label="Web address" error={shownError("url")}>
                   <input
-                    value={f.url || ""}
+                    value={draft.url}
                     onChange={set("url")}
+                    onBlur={blur("url")}
+                    aria-invalid={!!shownError("url")}
                     placeholder="example.com/article"
-                    className={inputClass}
+                    className={fieldClass("url")}
                   />
                 </Field>
                 <Field label="A note" hint="(optional)">
                   <input
-                    value={f.note || ""}
+                    value={draft.note}
                     onChange={set("note")}
                     placeholder="Why you're sharing it"
                     className={inputClass}
@@ -197,7 +227,7 @@ export function Composer({
               </>
             ) : null}
 
-            {kind === "picture" ? (
+            {draft.kind === "picture" ? (
               <>
                 <div className="flex flex-col items-center gap-2 rounded-card border border-dashed border-line-strong bg-bg px-4 py-7 text-center">
                   <span className="text-accent">
@@ -210,17 +240,19 @@ export function Composer({
                     (placeholder — real upload comes later)
                   </span>
                 </div>
-                <Field label="Title">
+                <Field label="Title" error={shownError("title")}>
                   <input
-                    value={f.title || ""}
+                    value={draft.title}
                     onChange={set("title")}
+                    onBlur={blur("title")}
+                    aria-invalid={!!shownError("title")}
                     placeholder="e.g. Candles after the circle"
-                    className={inputClass}
+                    className={fieldClass("title")}
                   />
                 </Field>
                 <Field label="Caption" hint="(optional)">
                   <input
-                    value={f.note || ""}
+                    value={draft.note}
                     onChange={set("note")}
                     placeholder="A few words about it"
                     className={inputClass}
@@ -229,19 +261,21 @@ export function Composer({
               </>
             ) : null}
 
-            {kind === "book" ? (
+            {draft.kind === "book" ? (
               <>
-                <Field label="Title">
+                <Field label="Title" error={shownError("title")}>
                   <input
-                    value={f.title || ""}
+                    value={draft.title}
                     onChange={set("title")}
+                    onBlur={blur("title")}
+                    aria-invalid={!!shownError("title")}
                     placeholder="Book title"
-                    className={inputClass}
+                    className={fieldClass("title")}
                   />
                 </Field>
                 <Field label="Author">
                   <input
-                    value={f.bookAuthor || ""}
+                    value={draft.bookAuthor}
                     onChange={set("bookAuthor")}
                     placeholder="Who wrote it"
                     className={inputClass}
@@ -249,7 +283,7 @@ export function Composer({
                 </Field>
                 <Field label="Why you recommend it" hint="(optional)">
                   <input
-                    value={f.note || ""}
+                    value={draft.note}
                     onChange={set("note")}
                     placeholder="A short note"
                     className={inputClass}
@@ -259,8 +293,19 @@ export function Composer({
             ) : null}
           </div>
 
-          <Button type="submit" block disabled={!canPost}>
-            Share with the circle
+          {/* Only reachable if the server refuses something the sheet allowed:
+              a bypassed client, or the insert itself failing. */}
+          {formError ? (
+            <p
+              role="alert"
+              className="rounded-[10px] border border-warn bg-warn-soft px-4 py-3 font-body text-[14px] leading-relaxed text-warn"
+            >
+              {formError}
+            </p>
+          ) : null}
+
+          <Button type="submit" block disabled={!isComplete(draft) || pending}>
+            {pending ? "Sharing…" : "Share with the circle"}
           </Button>
         </form>
       </div>

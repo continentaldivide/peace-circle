@@ -43,8 +43,10 @@ const MESSAGES_PAGE_SIZE = 15;
  * should be a redirect to /signin or /pending, not a page that is quietly
  * empty. The check is `cache()`d, so the repeats within a render are free.
  *
- * Reads only. New shares, comments, and chat messages still live in client
- * state seeded from these reads until Step 5 adds the server writes.
+ * Reads only, still: the writes live in `app/actions/` beside the forms that
+ * call them, each going through the same `requireApproved()` gate. What they
+ * insert is mapped by `rows.ts`, so the columns are named in one place for
+ * both directions.
  */
 
 /**
