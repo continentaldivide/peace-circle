@@ -17,6 +17,9 @@ import type { Comment, Member, Resource } from "@/lib/data";
 import { formatRelative } from "@/lib/time";
 import { trimmedBody } from "@/lib/validation";
 
+/** A comment on its way to the database, and which share it belongs to. */
+type PendingComment = Comment & { resourceId: string };
+
 /**
  * A share, its thread, and the box for adding to it.
  *
@@ -25,6 +28,10 @@ import { trimmedBody } from "@/lib/validation";
  * saved row is in `resource.comments` by the time the transition ends and
  * `useOptimistic` empties. That handover is why the two lists can be
  * concatenated without a comment ever appearing twice.
+ *
+ * One sheet serves every share — it is mounted once and the `resource` prop
+ * changes — so everything about writing a comment has to be tied to the share
+ * it was written under, or it turns up under the next one opened.
  */
 export function ResourceDetail({
   open,
@@ -42,7 +49,11 @@ export function ResourceDetail({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState("");
-  const [pending, addPending] = useOptimistic<Comment[]>([]);
+  // Each pending comment carries the share it was written under, so one still
+  // in flight when the member moves on is drawn under that share and not
+  // wherever they happen to be looking. `useOptimistic` has no reset, and it
+  // should not have one here: the comment is genuinely still on its way.
+  const [pending, addPending] = useOptimistic<PendingComment[]>([]);
   const [, startTransition] = useTransition();
   const [postError, setPostError] = useState<string | null>(null);
 
@@ -52,6 +63,18 @@ export function ResourceDetail({
   // during render (not an effect) so it never lags a frame behind on open.
   const [shown, setShown] = useState(resource);
   if (resource && resource !== shown) setShown(resource);
+
+  // A different share is a different conversation: the half-written comment
+  // and any complaint about the last one belong to the thread they were typed
+  // in. Keyed on the id rather than on `shown` itself, which is a new object
+  // after every `refresh()` — resetting on that would take away a comment
+  // somebody was still writing when their own share was posted.
+  const [threadId, setThreadId] = useState(shown?.id);
+  if (shown && shown.id !== threadId) {
+    setThreadId(shown.id);
+    setDraft("");
+    setPostError(null);
+  }
 
   function post(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +91,7 @@ export function ResourceDetail({
       addPending((current) => [
         ...current,
         {
+          resourceId,
           id: crypto.randomUUID(),
           authorId: user.id,
           // The browser's clock, for the moment before the saved row arrives
@@ -103,8 +127,12 @@ export function ResourceDetail({
     setPostError(why);
   }
 
-  const comments = shown ? [...shown.comments, ...pending] : [];
+  const mine = pending.filter((c) => c.resourceId === shown?.id);
+  const comments = shown ? [...shown.comments, ...mine] : [];
   const count = comments.length;
+  // Which of the thread's comments are still on their way, so they can be
+  // drawn as such. By id, because the two lists hold different shapes.
+  const unsaved = new Set(mine.map((c) => c.id));
 
   return (
     <Sheet open={open} onClose={onClose} label="Resource detail">
@@ -142,7 +170,7 @@ export function ResourceDetail({
                     <div
                       key={c.id}
                       className={`flex gap-3 ${
-                        pending.includes(c) ? "opacity-60" : ""
+                        unsaved.has(c.id) ? "opacity-60" : ""
                       }`}
                     >
                       <Avatar person={a} size={30} />
