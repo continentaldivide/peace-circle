@@ -184,21 +184,31 @@ Search and pictures are real (Step 6). Things worth knowing:
 - **Search is a URL, not a state variable.** `?q=` is read on the server by
   `app/library/page.tsx` and passed to `getResources({ search })`, so a result
   set is shareable, survives the `refresh()` a new share ends in, and stays
-  where the `resources_search_idx` GIN index is. `lib/search.ts` normalises the
+  where the search indexes are. `lib/search.ts` normalises the
   param in one place — an empty or whitespace query means _everything_, not
   nothing.
-- **`websearch_to_tsquery`, not the other two.** A person types into this box.
-  `to_tsquery` raises a syntax error on a stray dash or apostrophe, so a typo
-  would be a 500; `plainto_tsquery` never raises but discards the punctuation,
-  so a quoted phrase or a typed "or" would do nothing. `websearch_to_tsquery`
-  accepts any input by specification and reads quotes, "or" and a leading dash
-  the way every other search box does — which is why the query is passed through
-  unescaped.
+- **A share matches in either of two ways,** through the `search_resources`
+  database function, which `getResources` calls as an RPC:
+  - _Every typed word is the start of a word in the share_ — title, body,
+    quote, attribution, book author or web address — against `search_words`, a
+    `simple` tsvector that keeps every word. "can" finds "you can retreat",
+    "sanct" finds "sanctuary", "plum" finds plumvillage.org.
+  - _Or the words match by English stem_, against the original `search`
+    column: "retreating" finds "retreat", which no prefix can. Quotes, "or" and
+    a leading dash still work here, through `websearch_to_tsquery`.
+
+  The first version had only the second, and it failed searches anyone would
+  call obvious: English stop words ("can", "any", "you") are removed from the
+  query itself, so a search made of them matched nothing, and a half-typed word
+  matched nothing either — most of the time, in a box that searches as you type.
+  Neither half can be made to raise by what is typed, so the query is passed
+  through unescaped; `supabase/tests/search.test.sql` pins the behaviour down.
+
 - **The kind chips stay client-side, and their counts are counts within
   results.** The list handed to `LibraryView` is already what the query matched,
   so "Quotes 2" means two of these. Results stay newest-first rather than ranked:
-  the Library is a chronological feed a search narrows, and ranking would need an
-  RPC, putting a read outside the seam.
+  the Library is a chronological feed a search narrows, and ranking would move a
+  share depending on what was typed.
 
 - **The `images` bucket is private.** This is the load-bearing decision. A
   public bucket serves every object at a guessable URL that works for anyone

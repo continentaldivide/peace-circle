@@ -8,7 +8,7 @@
 -- Run with: supabase test db
 
 begin;
-select plan(96);
+select plan(99);
 
 -- Seeded fixtures (see supabase/seed.sql).
 --   1111… Lisa  — approved admin
@@ -821,7 +821,12 @@ set local request.jwt.claims =
   '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
 
 -- Every picture, not only their own: a share is posted to the whole circle.
-select is((select count(*) from storage.objects), 2::bigint,
+-- Counted by the fixtures' own names, because the local bucket may also hold
+-- pictures someone shared while using the app.
+select is(
+  (select count(*) from storage.objects
+     where name like '%/f1000000-0000-0000-0000-00000000000_.jpg'),
+  2::bigint,
   'approved member reads every stored image');
 
 select lives_ok(
@@ -1057,6 +1062,44 @@ select throws_ok(
   null,
   'member cannot edit their share to show another member''s picture'
 );
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- The Library's search function.
+--
+-- `search_resources` is SECURITY INVOKER, so it answers through the same RLS
+-- as a plain select on `resources`. These pin that down: a search is not a way
+-- around the gate, and a revoked member searching gets what they get reading.
+-- ---------------------------------------------------------------------------
+
+set local role anon;
+set local request.jwt.claims = '';
+
+select throws_ok(
+  $$select * from public.search_resources('can')$$,
+  '42501',
+  null,
+  'anon cannot execute the Library search'
+);
+
+reset role;
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}';
+
+select is((select count(*) from public.search_resources('can')), 0::bigint,
+  'un-approved user finds nothing by searching');
+
+reset role;
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
+
+select is((select count(*) from public.search_resources('can')), 0::bigint,
+  'revoked member finds nothing by searching');
 
 reset role;
 

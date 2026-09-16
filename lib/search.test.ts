@@ -13,9 +13,9 @@ describe("normalizeSearch", () => {
   });
 
   test("keeps the punctuation a person types", () => {
-    // None of this is escaped or stripped: websearch_to_tsquery reads quotes
-    // as a phrase, "or" as alternation, and a leading dash as exclusion, and
-    // raises no syntax error on any of it.
+    // None of this is escaped or stripped: the database search reads quotes,
+    // "or" and a leading dash, and raises no error on any of it — see
+    // supabase/tests/search.test.sql for what it does with them.
     expect(normalizeSearch('"be still"')).toBe('"be still"');
     expect(normalizeSearch("silence or stillness")).toBe(
       "silence or stillness",

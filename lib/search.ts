@@ -3,7 +3,7 @@
  *
  * Search lives in `?q=` rather than in component state so a result set is
  * shareable, survives the `refresh()` a new share or comment ends in, and stays
- * on the server where the `resources_search_idx` index is. That means the query
+ * on the server where the search indexes are. That means the query
  * arrives as a search param — which is to say, as whatever someone put in the
  * address bar — so it is normalised here rather than trusted.
  *
@@ -14,7 +14,7 @@
 
 /**
  * Long enough for a remembered phrase, short enough that a pasted essay does
- * not become a URL. `websearch_to_tsquery` would cope; the address bar and the
+ * not become a URL. The database search would cope; the address bar and the
  * RSC payload are the reason for the ceiling.
  */
 const MAX_LENGTH = 200;
