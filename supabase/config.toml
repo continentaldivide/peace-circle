@@ -117,12 +117,11 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+# The `images` bucket is NOT declared here. This file describes the local stack
+# and is never pushed, so a bucket declared here would exist on this machine and
+# nowhere else. It is created, with its policies, in
+# supabase/migrations/20260916000001_library_images.sql, which reaches the
+# hosted project too.
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]

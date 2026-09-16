@@ -299,10 +299,13 @@ export type Database = {
           book_author: string | null
           created_at: string
           id: string
+          image_height: number | null
           image_path: string | null
+          image_width: number | null
           kind: Database["public"]["Enums"]["resource_kind"]
           quote: string | null
           search: unknown
+          search_words: unknown
           title: string | null
           url: string | null
         }
@@ -313,10 +316,13 @@ export type Database = {
           book_author?: string | null
           created_at?: string
           id?: string
+          image_height?: number | null
           image_path?: string | null
+          image_width?: number | null
           kind: Database["public"]["Enums"]["resource_kind"]
           quote?: string | null
           search?: unknown
+          search_words?: unknown
           title?: string | null
           url?: string | null
         }
@@ -327,10 +333,13 @@ export type Database = {
           book_author?: string | null
           created_at?: string
           id?: string
+          image_height?: number | null
           image_path?: string | null
+          image_width?: number | null
           kind?: Database["public"]["Enums"]["resource_kind"]
           quote?: string | null
           search?: unknown
+          search_words?: unknown
           title?: string | null
           url?: string | null
         }
@@ -351,9 +360,36 @@ export type Database = {
     Functions: {
       is_admin: { Args: never; Returns: boolean }
       is_approved: { Args: never; Returns: boolean }
+      prefix_tsquery: { Args: { p_text: string }; Returns: unknown }
       redeem_launch_code: {
         Args: { p_code: string }
         Returns: Database["public"]["Enums"]["launch_code_outcome"]
+      }
+      search_resources: {
+        Args: { p_query: string }
+        Returns: {
+          attribution: string | null
+          author_id: string
+          body: string | null
+          book_author: string | null
+          created_at: string
+          id: string
+          image_height: number | null
+          image_path: string | null
+          image_width: number | null
+          kind: Database["public"]["Enums"]["resource_kind"]
+          quote: string | null
+          search: unknown
+          search_words: unknown
+          title: string | null
+          url: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "resources"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
     }
     Enums: {

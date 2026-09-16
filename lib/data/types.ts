@@ -46,15 +46,27 @@ export type LinkResource = ResourceBase & {
   body?: string;
 };
 
+/**
+ * An uploaded picture, ready to render. `src` is a route of this app's, not a
+ * storage URL — the bucket is private — and the dimensions come from the row so
+ * the box can be reserved before the bytes arrive.
+ */
+export type ResourceImage = {
+  src: string;
+  width: number;
+  height: number;
+};
+
 export type PictureResource = ResourceBase & {
   kind: "picture";
   title: string;
   caption?: string;
   /**
-   * Caption shown inside the striped placeholder. There is no column for it:
-   * real images are Step 6, and until then it is derived from the title.
+   * Absent when the share has no photo. Every picture in the Library from
+   * before uploads existed is in that state, and so is one composed without
+   * choosing a file, so this is an ordinary case rather than a broken row.
    */
-  placeholder: string;
+  image?: ResourceImage;
 };
 
 export type BookResource = ResourceBase & {

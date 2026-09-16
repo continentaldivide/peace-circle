@@ -6,7 +6,9 @@ import type {
   Member,
   Message,
   Resource,
+  ResourceImage,
 } from "@/lib/data/types";
+import { imageSrc } from "@/lib/images";
 import type { Database } from "@/lib/supabase/database.types";
 import { circleDate } from "@/lib/time";
 import { initialsFor } from "@/lib/utils";
@@ -51,6 +53,9 @@ export type ResourceRow = Pick<
   | "attribution"
   | "url"
   | "book_author"
+  | "image_path"
+  | "image_width"
+  | "image_height"
   | "created_at"
 > & {
   comments: Pick<
@@ -107,18 +112,14 @@ export function toResource(row: ResourceRow): Resource {
         url: required(row.url, "url", row),
         body,
       };
-    case "picture": {
-      const title = required(row.title, "title", row);
+    case "picture":
       return {
         ...base,
         kind: "picture",
-        title,
+        title: required(row.title, "title", row),
         caption: body,
-        // No image column is read yet (Step 6), so the placeholder says what
-        // the picture is, the way the composer does for a new one.
-        placeholder: `photo — ${title.toLowerCase()}`,
+        image: toResourceImage(row),
       };
-    }
     case "book":
       return {
         ...base,
@@ -128,6 +129,26 @@ export function toResource(row: ResourceRow): Resource {
         body,
       };
   }
+}
+
+/**
+ * The picture's three image columns as one thing, or nothing.
+ *
+ * Not `required()`, unlike the columns above. Those name a field the
+ * `resources_kind_shape` check guarantees, so a null means the constraint and
+ * this code disagree and failing loudly is right. Here an absent image is an
+ * ordinary state — every picture shared before uploads existed has none — and
+ * a row somehow carrying a path without its dimensions is better drawn as a
+ * share without a photo than as a Library that will not render.
+ */
+function toResourceImage(row: ResourceRow): ResourceImage | undefined {
+  if (row.image_path === null) return undefined;
+  if (row.image_width === null || row.image_height === null) return undefined;
+  return {
+    src: imageSrc(row.image_path),
+    width: row.image_width,
+    height: row.image_height,
+  };
 }
 
 /** A new share, as the columns it is stored in. */
@@ -142,8 +163,10 @@ export type ResourceInsert = Tables["resources"]["Insert"];
  * field for is simply left out, so a url typed under the Link chip cannot ride
  * along on a quote the member changed their mind into.
  *
- * `image_path` is nobody's yet: the composer's drop zone is decorative and
- * real uploads are Step 6.
+ * A picture's `image_path` is the one field here that names something outside
+ * the row, and only the picture branch reads it — an image uploaded under the
+ * Picture chip cannot ride along on a quote the member changed their mind
+ * into, for the same reason a url cannot.
  */
 export function toResourceInsert(
   draft: ResourceDraft,
@@ -185,6 +208,12 @@ export function toResourceInsert(
         kind: "picture",
         title: draft.title.trim(),
         body,
+        // All three together or all three null — `resources_image_shape` will
+        // not have it any other way, and a picture with no photo at all is an
+        // ordinary share rather than a half-finished one.
+        image_path: draft.image?.path ?? null,
+        image_width: draft.image?.width ?? null,
+        image_height: draft.image?.height ?? null,
       };
     case "book":
       return {

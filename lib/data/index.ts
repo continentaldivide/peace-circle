@@ -8,6 +8,7 @@ import {
   toMessage,
   toResource,
 } from "@/lib/data/rows";
+import { normalizeSearch } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CircleEvent,
@@ -49,21 +50,65 @@ const MESSAGES_PAGE_SIZE = 15;
  * both directions.
  */
 
+/** Every column a Library card needs, with its comments embedded. */
+const RESOURCE_COLUMNS =
+  "id, author_id, kind, title, body, quote, attribution, url, book_author, image_path, image_width, image_height, created_at, comments (id, author_id, body, created_at)";
+
 /**
  * The Library, newest first, each share with its comments oldest first.
  *
  * One query: comments come embedded through their foreign key rather than as
  * a request per share. `id` breaks ties so two rows written in the same
  * instant keep a stable order between renders.
+ *
+ * `search` narrows it to the shares matching a member's words. An empty or
+ * whitespace query is no search at all, not a search for nothing: the whole
+ * Library comes back. `normalizeSearch` is what settles that, in one place, for
+ * the search box and for here.
+ *
+ * The matching itself is the `search_resources` database function, called as an
+ * RPC so the results can still embed their comments and be ordered like the
+ * unsearched Library. A share matches in either of two ways (see
+ * `supabase/migrations/20260916000003_library_search_words.sql`):
+ *
+ * - **Every typed word is the start of a word in the share** — title, body,
+ *   quote, attribution, book author, or web address. This is what a search box
+ *   is expected to do: "can" finds "you can retreat", "sanct" finds
+ *   "sanctuary", "plum" finds plumvillage.org. Nothing typed is discarded.
+ * - **Or the words match by stem**, in English, as the first version of this
+ *   search did: "retreating" finds "retreat", "candles" finds "candle". A
+ *   prefix cannot do that. Quotes, "or" and a leading dash are honoured here,
+ *   through `websearch_to_tsquery`, which accepts any input without raising.
+ *
+ * The first version used only the second, and it failed searches a member
+ * would call obvious: English stop words ("can", "any", "you") are dropped
+ * from the query entirely, so a search made of them matched nothing, and a
+ * half-typed word matched nothing either — which, in a box that searches as you
+ * type, is most of the time.
+ *
+ * The query reaches both halves as plain text, unescaped: neither can be made
+ * to raise by what is typed. The prefix query is built inside Postgres from
+ * the same parser that built the index, so the two always split words the same
+ * way.
+ *
+ * Results stay newest-first rather than ranked. The Library is a chronological
+ * feed and a search narrows it; reordering by relevance would move a share
+ * depending on what was typed.
  */
-export async function getResources(): Promise<Resource[]> {
+export async function getResources(opts?: {
+  /** The member's words, or "" / omitted for the whole Library. */
+  search?: string;
+}): Promise<Resource[]> {
   await requireApproved();
+  const query = normalizeSearch(opts?.search);
+
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("resources")
-    .select(
-      "id, author_id, kind, title, body, quote, attribution, url, book_author, created_at, comments (id, author_id, body, created_at)",
-    )
+  const source = query
+    ? supabase.rpc("search_resources", { p_query: query })
+    : supabase.from("resources");
+
+  const { data, error } = await source
+    .select(RESOURCE_COLUMNS)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .order("created_at", { referencedTable: "comments", ascending: true })

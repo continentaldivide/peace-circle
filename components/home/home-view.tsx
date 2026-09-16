@@ -253,6 +253,7 @@ export function HomeView({
         onClose={() => setOpenId(null)}
       />
       <Composer
+        user={user}
         open={composing}
         onClose={() => setComposing(false)}
         onCreated={openCreated}

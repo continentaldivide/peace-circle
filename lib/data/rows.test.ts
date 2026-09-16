@@ -27,6 +27,9 @@ function row(fields: Partial<ResourceRow>): ResourceRow {
     attribution: null,
     url: null,
     book_author: null,
+    image_path: null,
+    image_width: null,
+    image_height: null,
     created_at: "2026-09-13T16:00:00+00:00",
     comments: [],
     ...fields,
@@ -86,7 +89,7 @@ describe("toResource", () => {
     expect(r.kind === "quote" && r.note).toBeUndefined();
   });
 
-  test("a picture's caption is its body; the placeholder comes from the title", () => {
+  test("a picture's caption is its body, and it may have no image at all", () => {
     const r = toResource(
       row({
         kind: "picture",
@@ -97,8 +100,43 @@ describe("toResource", () => {
     expect(r).toMatchObject({
       kind: "picture",
       caption: "We sat with these until the last person was ready to leave.",
-      placeholder: "photo — candles after the april circle",
     });
+    // Every picture shared before uploads existed is in this state. It is an
+    // ordinary share, not a broken one.
+    expect(r.kind === "picture" && r.image).toBeUndefined();
+  });
+
+  test("a picture's image is an app route and the row's own dimensions", () => {
+    const r = toResource(
+      row({
+        kind: "picture",
+        title: "Candles after the April circle",
+        image_path: `${LISA}/f1a2b3c4-0000-4000-8000-0000000000ab.jpg`,
+        image_width: 1200,
+        image_height: 900,
+      }),
+    );
+    expect(r.kind === "picture" && r.image).toEqual({
+      // Never a storage URL: the bucket is private and the bytes come through
+      // this app, which is the only place the gate can be checked.
+      src: `/api/images/${LISA}/f1a2b3c4-0000-4000-8000-0000000000ab.jpg`,
+      width: 1200,
+      height: 900,
+    });
+  });
+
+  test("a path with no dimensions draws as a share without a photo", () => {
+    // The resources_image_shape constraint makes this row impossible. If one
+    // ever exists anyway, one picture missing beats the whole Library failing
+    // to render, so this is the one place a column is not `required()`.
+    const r = toResource(
+      row({
+        kind: "picture",
+        title: "Half a picture",
+        image_path: `${LISA}/f1a2b3c4-0000-4000-8000-0000000000ab.jpg`,
+      }),
+    );
+    expect(r.kind === "picture" && r.image).toBeUndefined();
   });
 
   test("a book's author is book_author and its description is body", () => {

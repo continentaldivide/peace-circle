@@ -4,9 +4,10 @@ A web app for the Peace Circle community group: a place for approved members to
 share resources (quotes, links, pictures, books), discuss them, and track
 upcoming gatherings.
 
-The UI is built, the database schema is in place, the access gate is real, and
-every page both reads and writes real data. What remains is search and uploads,
-admin tools, and launch. This document is the plan for that work.
+The UI is built, the database schema is in place, the access gate is real, every
+page both reads and writes real data, the Library is searchable, and pictures
+are real files. What remains is admin tools and launch. This document is the
+plan for that work.
 
 ---
 
@@ -106,10 +107,11 @@ them go red. Run with `supabase test db`.
 
 ## Status
 
-Steps 1–5 are done: there is a hosted Supabase project with the schema pushed,
-the access gate is real, both ways into the circle work, and every member page
-reads and writes real data. Member pages are server components that call
-`requireApproved()` before rendering, backed by RLS.
+Steps 1–6 are done: there is a hosted Supabase project with the schema pushed,
+the access gate is real, both ways into the circle work, every member page reads
+and writes real data, and the Library both searches and holds photographs.
+Member pages are server components that call `requireApproved()` before
+rendering, backed by RLS.
 
 Onboarding is complete end to end, verified in a browser against the local
 stack rather than reasoned about:
@@ -177,6 +179,85 @@ knowing:
   not http(s) is refused. The column is plain text, one member writes it and
   another opens it, and `javascript:` is a script rather than an address.
 
+Search and pictures are real (Step 6). Things worth knowing:
+
+- **Search is a URL, not a state variable.** `?q=` is read on the server by
+  `app/library/page.tsx` and passed to `getResources({ search })`, so a result
+  set is shareable, survives the `refresh()` a new share ends in, and stays
+  where the search indexes are. `lib/search.ts` normalises the
+  param in one place — an empty or whitespace query means _everything_, not
+  nothing.
+- **A share matches in either of two ways,** through the `search_resources`
+  database function, which `getResources` calls as an RPC:
+  - _Every typed word is the start of a word in the share_ — title, body,
+    quote, attribution, book author or web address — against `search_words`, a
+    `simple` tsvector that keeps every word. "can" finds "you can retreat",
+    "sanct" finds "sanctuary", "plum" finds plumvillage.org.
+  - _Or the words match by English stem_, against the original `search`
+    column: "retreating" finds "retreat", which no prefix can. Quotes, "or" and
+    a leading dash still work here, through `websearch_to_tsquery`.
+
+  The first version had only the second, and it failed searches anyone would
+  call obvious: English stop words ("can", "any", "you") are removed from the
+  query itself, so a search made of them matched nothing, and a half-typed word
+  matched nothing either — most of the time, in a box that searches as you type.
+  Neither half can be made to raise by what is typed, so the query is passed
+  through unescaped; `supabase/tests/search.test.sql` pins the behaviour down.
+
+- **The kind chips stay client-side, and their counts are counts within
+  results.** The list handed to `LibraryView` is already what the query matched,
+  so "Quotes 2" means two of these. Results stay newest-first rather than ranked:
+  the Library is a chronological feed a search narrows, and ranking would move a
+  share depending on what was typed.
+
+- **The `images` bucket is private.** This is the load-bearing decision. A
+  public bucket serves every object at a guessable URL that works for anyone
+  holding it, with no session and no policy consulted, which would route the
+  circle's photographs around the gate entirely. The policies on
+  `storage.objects` (created in the same migration as the bucket, because
+  `config.toml` is never pushed) route through the same `is_approved()` /
+  `is_admin()` as the other eight tables. Objects are named
+  `<author_id>/<uuid>.jpg`, so `storage.foldername(name)[1]` is the uploader and
+  "your own file" is something a policy can check.
+- **An image URL is a route of this app's:** `/api/images/<path>`, which checks
+  the gate and streams the object through the member's own session. One stable
+  address per picture, cacheable by the browser. The alternative — a signed URL
+  minted per render — is a different string every time, expires while the page
+  holding it is still open, and puts a token in the RSC payload.
+- **Nothing optimizes these images.** Next's optimizer fetches an image's `src`
+  without forwarding the request's headers, so it reaches that route with no
+  session and is turned away. Pictures are drawn `unoptimized`, and what takes
+  optimization's place is the browser scaling the photo to 1200px and
+  re-encoding it as a JPEG _before_ it is uploaded. `next.config.ts` is still
+  empty and now says why, including that `dangerouslyAllowLocalIP` is not needed
+  and that spelling the local Supabase URL `localhost` would not have sidestepped
+  it anyway — the check is a DNS lookup followed by a private-address test.
+- **The bytes never pass through a Server Action.** An action's body is capped at
+  1 MB. The browser uploads straight to Storage with its own session — which is
+  what storage RLS checks — and the action receives a path. A share only _names_
+  a file, so which file it may name is a rule of its own: the
+  `resources_image_path_own` constraint requires `image_path` to be exactly
+  `<author_id>/<uuid>.<jpg|png|webp>`, so no writer — the app, a member with a
+  session and a REST client, or the service role — can point a share at another
+  member's photo. The action checks the same thing first, to say so in words.
+- **Deleting a share does not delete its object, and cannot be made to.**
+  Storage guards its own tables with a trigger that refuses any direct SQL
+  delete and says to use the Storage API, so a cascade or a row trigger is not
+  available — the gate tests assert this, and the comment on
+  `resources.image_path` says it in the schema. **Whoever deletes a share must
+  remove its object through the Storage API first.** Step 7's moderation is the
+  first thing that will. The composer already does it in the one case that
+  exists today: an upload that succeeded followed by an insert that did not.
+- **`PictureResource.placeholder` is gone.** It was a restatement of the title,
+  so it is derived in `resource-body.tsx` now; the seam carries `image`, which is
+  optional. A picture share with no photo is an ordinary share — both pictures in
+  the Library are one — and it draws the striped filler it always did.
+- **A picture's dimensions are stored** (`image_width`, `image_height`), so
+  `next/image` reserves the photo's real shape and nothing below it moves when
+  the bytes land. A check constraint keeps all three columns together, and they
+  are deliberately not tied to `kind`, because a book cover is the obvious next
+  thing to want one.
+
 Three deliberate omissions, so they are not mistaken for oversights:
 
 - **No per-IP rate limit on `/join`.** It would need its own table, since
@@ -193,31 +274,31 @@ Three deliberate omissions, so they are not mistaken for oversights:
 
 Still stubbed or missing:
 
-- **No uploads.** Picture resources carry a `placeholder` derived from the
-  title; the composer's drop zone is decorative (Step 6).
-- **No search.** The Library filters by kind in memory (Step 6).
-- **Nothing is emailed from the hosted project yet.** The outgoing seam is
-  built (`lib/email.ts`) and `/join` uses it, but without `RESEND_API_KEY` it
-  logs instead of sending, and Supabase Auth still uses its own sender — the
-  dashboard SMTP switch waits on a verified sending domain. Locally this is
-  moot: `supabase start` catches every auth mail in Mailpit.
-- **The hosted project is behind the repo.** Four migrations exist locally and
-  have not been `db push`ed: the admin allowlist, the inquiry length limits,
-  the launch-code redemption, and the profile field limits. Until the first of
-  those lands, `admin_emails` is empty there and nobody can become an admin.
-  The hosted invite email template
-  also needs setting by hand in the dashboard to point at `/auth/confirm` —
-  `config.toml` describes the local stack and is never pushed, so an invite
-  sent from the hosted project would otherwise arrive with a link this app
-  cannot complete.
+- **Storage does not exist on the hosted project yet.** The bucket and its
+  policies are in a migration, so `db push` creates them there; nothing has been
+  pushed. Until it is, a hosted upload has nowhere to go.
+- **The hosted project is behind the repo by the two Step 6 migrations** — the
+  image columns, bucket and storage policies, and the constraint that a share
+  may only name a picture from its author's own folder. Everything through Step
+  5 has been pushed.
 - **Placeholder pages** — `/about` and `/admin` render `PlaceholderPage`.
+
+Done by hand, reported by the user after Step 6 and not re-checked from here:
+the hosted invite email template points at `/auth/confirm`, the auth redirect
+URLs are set, Supabase Auth sends through Resend SMTP, and `RESEND_API_KEY` is
+set for the app's own email (`/join`'s notification). The first two matter
+because `config.toml` describes the local stack and is never pushed; the SMTP
+switch because Supabase's built-in sender throttles to a handful of messages an
+hour.
 
 ---
 
 ## The plan
 
 Eight steps, ordered so each rests on the last. Steps 1–3 are the risky part;
-after that it's filling in features behind a working gate.
+after that it's filling in features behind a working gate. One idea sits past
+the end of them, in "After launch" — deliberately not a ninth step, because
+nothing in the eight waits on it.
 
 ### Step 1 — Hosted Supabase project
 
@@ -326,12 +407,22 @@ The chat keeps its optimistic send, so it stays feeling like a group text.
 
 ### Step 6 — Search and uploads
 
-- Full-text search over the `resources.search` tsvector, wired into the
-  Library's existing filter bar.
-- Real image uploads to Supabase Storage; replace `PictureResource.placeholder`
-  with `image_path` and render via `next/image`. Note Next 16 changed
-  `next/image` defaults (`minimumCacheTTL`, `imageSizes`, `qualities`, and local
-  images with query strings).
+_Done._ Full-text search over the `resources.search` tsvector, wired into the
+Library's filter bar as a `?q=` search param read on the server; and real image
+uploads to a **private** Supabase Storage bucket, created with its policies in a
+migration so they reach the hosted project. See Status for what each decided.
+
+The short version: the query lives in the URL and goes to Postgres through
+`getResources()`, while the kind chips stay in the browser; and because the
+bucket is private, pictures are served by `/api/images/[...path]` behind the
+gate and drawn `unoptimized`, with the scaling done in the browser before upload
+instead of by Next afterwards.
+
+> **The `next/image` note that used to be here was half right.** Next 16 did
+> change `minimumCacheTTL`, `imageSizes`, `qualities`, `remotePatterns` and
+> local images with query strings — and none of it applies, because nothing goes
+> through the optimizer. `next.config.ts` is empty on purpose and explains
+> itself.
 
 ### Step 7 — Admin & polish
 
@@ -339,6 +430,10 @@ The chat keeps its optimistic send, so it stays feeling like a group text.
   (`new → reviewing → invited → joined` / `declined`), the Invite action
   (`inviteUserByEmail` + branded Resend template), moderation (delete a
   share/comment), and event management.
+- **Deleting a picture share must remove its object through the Storage API
+  before the row.** Nothing in the database can do it — storage refuses a direct
+  SQL delete — so a delete that forgets leaves a file in the bucket forever with
+  nothing pointing at it. See Status.
 - Write the `/about` page.
 - Empty states, error boundaries, and a mobile pass.
 - Replace the create-next-app boilerplate in `README.md`.
@@ -351,6 +446,46 @@ The chat keeps its optimistic send, so it stays feeling like a group text.
 - Set up the two free-tier chores: the weekly keep-alive ping and the scheduled
   `pg_dump` backup.
 - Onboard members.
+
+### After launch — book covers from Google Books
+
+Not part of the eight steps, and not a prerequisite for any of them. A book
+share is a title, an author, and a note, and it looks thinner in the Library
+than a quote or a picture does. When a member types a title in the composer,
+the app could ask the Google Books API what it knows, offer the covers it finds,
+and let them pick one.
+
+**This is additive.** A book share with no cover has to keep working exactly as
+it does today — the same fields, the same card, the same rules about what may be
+posted. Every book already in the Library has no cover and never will unless
+someone goes back and edits it, so "no cover" is the normal case, not the
+degraded one. If that stops being true while building it, the feature has grown
+past what it was for.
+
+Three things are open, and whoever picks this up should settle them first:
+
+- **Where the lookup runs.** It is a suggestion, not a mutation, and Server
+  Actions dispatch one at a time per client — so an action fired per keystroke
+  would queue behind the member's real writes. The Next.js guide on backends for
+  the front end (`02-guides/backend-for-frontend.md`) points at a Route Handler
+  for exactly this shape of request. Debouncing is a given either way.
+- **What picking a cover stores.** A Google URL is a hotlink: the image is
+  served by someone else's host, on their terms, for as long as they choose to.
+  Copying it into our own bucket avoids that, but then `image_path` carries two
+  different kinds of thing — a photo a member took and a cover we fetched — or
+  the schema needs another column, which brings everything in `AGENTS.md` about
+  regenerating types with the migration. Whoever builds it will also want what
+  Step 6 settled about the bucket: it is private, and an object is reached
+  through the app rather than by its own URL. That is the main reason this comes
+  after Step 6 rather than beside it.
+- **What to verify before building.** The `volumes` endpoint
+  (`https://www.googleapis.com/books/v1/volumes?q=intitle:…`) is _said_ to
+  answer without a key for light use, rate-limited by IP, with covers under
+  `volumeInfo.imageLinks`. None of that has been checked. The current terms of
+  use, whether attribution is required, and what the returned URLs actually look
+  like — some are `http`, which both `next/image` and a content-security policy
+  will object to — are for whoever builds it to confirm against Google's own
+  documentation rather than against this paragraph.
 
 ### Testing
 

@@ -20,7 +20,7 @@ const PURPOSE = [
 ];
 
 /** Left-aligned, serif, with the 3-up purpose strip pinned to the bottom. */
-export function Hero() {
+export function Hero({ member }: { member: boolean }) {
   return (
     <section className="flex flex-1 flex-col px-6 pt-12 sm:px-14 sm:pt-16">
       <Eyebrow>A community inspired by monks who walk for peace</Eyebrow>
@@ -34,7 +34,13 @@ export function Hero() {
         share what keeps us steady.
       </Lede>
       <div className="mt-8 flex flex-wrap items-center gap-[22px]">
-        <ButtonLink href="/join">Join the circle</ButtonLink>
+        {/* A member reading the landing page is already in; the one thing
+            to offer them is the way back. */}
+        {member ? (
+          <ButtonLink href="/home">Go to Home</ButtonLink>
+        ) : (
+          <ButtonLink href="/join">Join the circle</ButtonLink>
+        )}
       </div>
 
       <div className="mt-auto grid grid-cols-1 gap-10 border-t border-line py-10 sm:grid-cols-3">
