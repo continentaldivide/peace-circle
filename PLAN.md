@@ -5,7 +5,7 @@ share resources (quotes, links, pictures, books), discuss them, and track
 upcoming gatherings.
 
 The UI is built, the database schema is in place, the access gate is real, and
-every page reads real data. What remains is real writes, search and uploads,
+every page both reads and writes real data. What remains is search and uploads,
 admin tools, and launch. This document is the plan for that work.
 
 ---
@@ -83,6 +83,12 @@ change into a rewrite.
 and never learn where the data came from. When they moved from mock arrays to
 Supabase queries in Step 4, only their insides and the timestamp fields changed.
 
+Writes are not routed through that module — each server action inserts its own
+row, because a write also owns a gate check, validation, and what the member is
+told when it fails. The seam's real content is kept, though: the column names
+still live only in `lib/data/rows.ts`, which maps rows out (`toResource`) and
+drafts in (`toResourceInsert`), so no component and no action spells one out.
+
 ### The access gate lives in the database
 
 The gate must live in **RLS policies** keyed on an `approved` profile, not in
@@ -100,9 +106,9 @@ them go red. Run with `supabase test db`.
 
 ## Status
 
-Steps 1–4 are done: there is a hosted Supabase project with the schema pushed,
+Steps 1–5 are done: there is a hosted Supabase project with the schema pushed,
 the access gate is real, both ways into the circle work, and every member page
-reads real data. Member pages are server components that call
+reads and writes real data. Member pages are server components that call
 `requireApproved()` before rendering, backed by RLS.
 
 Onboarding is complete end to end, verified in a browser against the local
@@ -140,6 +146,37 @@ The data seam is real (Step 4). `lib/data/index.ts` queries `profiles`,
   used (`agenda`, `address`, `parking`, `welcome`, `description`, `location`)
   stay in the schema for Step 7's event management.
 
+Every mutation is real (Step 5). Composing a share, commenting on one, and
+sending a chat message each go through a server action in `app/actions/`, which
+checks `requireApproved()` for itself, takes the author from the session, and
+re-runs the rules the form ran — a rendered form is not a security boundary,
+because anyone can POST to an action without loading the page. Things worth
+knowing:
+
+- **`refresh()`, not `updateTag()`.** Cache Components is off and nothing is
+  tagged, so no cache entry exists to expire; what goes stale is the RSC
+  payload the browser holds. `refresh()` re-renders the current route and
+  returns it in the same response as the action's result.
+- **The server owns the Library.** `HomeView` and `LibraryView` render the
+  `resources` prop rather than a copy in state. That is what makes `refresh()`
+  work at all: a list seeded once from props would ignore the re-render.
+- **The chat is the exception, deliberately.** Its list grows in the browser as
+  older pages are paged in, so a re-render cannot replace it. `sendMessage`
+  therefore calls no `refresh()` and returns the saved row instead; the message
+  is drawn with a `pending:` id and that row takes its place. Replacing rather
+  than appending is what keeps one message from showing twice.
+- **A failed action is caught at the call site.** An error thrown out of an
+  async transition goes to the nearest error boundary, and there is none until
+  Step 7 — so a 500 on one comment would take the whole page down. Each caller
+  catches, gives the words back, and says what happened.
+- **Writes map columns in `lib/data/rows.ts`, like reads.** `toResourceInsert`
+  is the write half of `toResource`, so which columns a kind fills is named in
+  one place for both directions.
+- **A shared web address is normalised** (`lib/resources.ts`): a missing scheme
+  becomes `https://`, as the field's placeholder invites, and anything that is
+  not http(s) is refused. The column is plain text, one member writes it and
+  another opens it, and `javascript:` is a script rather than an address.
+
 Three deliberate omissions, so they are not mistaken for oversights:
 
 - **No per-IP rate limit on `/join`.** It would need its own table, since
@@ -156,8 +193,6 @@ Three deliberate omissions, so they are not mistaken for oversights:
 
 Still stubbed or missing:
 
-- **All mutations are client state.** Composing a share, adding a comment, and
-  sending a chat message update React state and vanish on reload (Step 5).
 - **No uploads.** Picture resources carry a `placeholder` derived from the
   title; the composer's drop zone is decorative (Step 6).
 - **No search.** The Library filters by kind in memory (Step 6).
@@ -271,20 +306,23 @@ the `tint` field for both the seam and `getSignedInMember()`.
 
 ### Step 5 — Real writes
 
-Server actions for composing a share, adding a comment, and sending a chat
-message, replacing the client-state mutations in `composer.tsx`,
-`resource-detail.tsx`, and `circle-chat.tsx`.
+_Done._ Server actions for composing a share, adding a comment, and sending a
+chat message, replacing the client-state mutations in `composer.tsx`,
+`resource-detail.tsx`, and `circle-chat.tsx`. See Status for what each one
+decided; the short version is that the Library became prop-driven so a
+`refresh()` could reach it, and the chat deliberately did not.
 
 > **Next.js 16 caching APIs changed** — don't use remembered patterns:
 >
 > - `revalidateTag(tag)` now requires a second argument:
 >   `revalidateTag(tag, "max")`. The one-argument form is a TypeScript error.
-> - Prefer **`updateTag(tag)`** in server actions — it expires and refreshes in
->   the same request, giving read-your-writes semantics, which is what every one
->   of these mutations wants (the member should see their own post immediately).
-> - **`refresh()`** refreshes the client router from inside a server action.
+> - **`updateTag(tag)`** expires and refreshes in the same request, which is
+>   what a read-your-writes mutation wants — but it needs a tag, and nothing
+>   here has one. With Cache Components off, these pages are dynamic and
+>   uncached, so `refresh()` (also from `next/cache`, server actions only) is
+>   what they actually needed.
 
-Keep optimistic UI on the chat send so it stays feeling like a group text.
+The chat keeps its optimistic send, so it stays feeling like a group text.
 
 ### Step 6 — Search and uploads
 
