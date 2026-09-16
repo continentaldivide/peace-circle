@@ -105,12 +105,22 @@ export function isResourceDraft(value: unknown): value is ResourceDraft {
  * other scheme is turned away: the column is plain text, one member writes
  * this and another opens it, and `javascript:` is not an address but a script
  * someone else runs.
+ *
+ * A scheme is `something://`, not merely something before a colon. Testing for
+ * a bare colon read the port in "example.com:8080/article" as a scheme named
+ * "example.com", left the address unprefixed, and then refused it for not
+ * being http — an error with nothing the member could do about it. Anything
+ * else typed with a colon and no slashes is prefixed instead of trusted, and
+ * what it becomes is refused below: "javascript:alert(1)" does not parse as a
+ * host and port, and "mailto:someone@example.org" parses as credentials.
  */
 export function normalizeUrl(value: string): string | null {
   const raw = value.trim();
   if (raw === "") return null;
 
-  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
+    ? raw
+    : `https://${raw}`;
   let url: URL;
   try {
     url = new URL(withScheme);
@@ -121,6 +131,10 @@ export function normalizeUrl(value: string): string | null {
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
   // "https://notes" parses but goes nowhere anyone else can follow.
   if (!url.hostname.includes(".")) return null;
+  // Credentials in an address are the shape a disguised link takes:
+  // "https://peacecircle.org@somewhere-else.example" is a username and a
+  // different host, and reads to a member as the site it names first.
+  if (url.username !== "" || url.password !== "") return null;
   return url.href;
 }
 

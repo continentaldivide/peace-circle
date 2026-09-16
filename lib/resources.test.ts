@@ -28,9 +28,28 @@ describe("normalizeUrl", () => {
     expect(normalizeUrl("http://example.com/a")).toBe("http://example.com/a");
   });
 
+  test("keeps a port, which is not a scheme", () => {
+    expect(normalizeUrl("example.com:8080/article")).toBe(
+      "https://example.com:8080/article",
+    );
+    expect(normalizeUrl("http://example.com:8080/a")).toBe(
+      "http://example.com:8080/a",
+    );
+  });
+
   test("refuses a scheme that is a script rather than an address", () => {
     expect(normalizeUrl("javascript:alert(1)")).toBeNull();
+    expect(normalizeUrl("javascript://example.com/%0aalert(1)")).toBeNull();
     expect(normalizeUrl("data:text/html,<script>")).toBeNull();
+    expect(normalizeUrl("mailto:someone@example.org")).toBeNull();
+  });
+
+  test("refuses an address wearing another one's name", () => {
+    // The host is somewhere-else.example; the part before the @ is a username.
+    expect(
+      normalizeUrl("https://peacecircle.org@somewhere-else.example/x"),
+    ).toBeNull();
+    expect(normalizeUrl("someone@example.org")).toBeNull();
   });
 
   test("refuses a host nobody else could reach", () => {
