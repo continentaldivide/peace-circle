@@ -67,8 +67,14 @@ export function emailError(value: string): string | undefined {
  *
  * Deliberately no ceiling: `comments.body` and `messages.body` have none
  * either, and the circle would rather someone wrote too much than be cut off.
+ *
+ * Takes `unknown` because both callers are Server Actions, where a parameter's
+ * declared type is a hope: the caller is a POST body, and something that is not
+ * a string at all should come back as "nothing to save" rather than as a
+ * TypeError inside the action.
  */
-export function trimmedBody(value: string): string | null {
+export function trimmedBody(value: unknown): string | null {
+  if (typeof value !== "string") return null;
   const body = value.trim();
   return body.length > 0 ? body : null;
 }

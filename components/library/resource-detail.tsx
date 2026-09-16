@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 
+import { addComment } from "@/app/actions/resources";
 import { Avatar } from "@/components/avatar";
 import type { AuthorInfo } from "@/components/library/kinds";
 import {
@@ -12,9 +13,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { Sheet, SheetClose } from "@/components/ui/sheet";
-import type { Member, Resource } from "@/lib/data";
+import type { Comment, Member, Resource } from "@/lib/data";
 import { formatRelative } from "@/lib/time";
+import { trimmedBody } from "@/lib/validation";
 
+/**
+ * A share, its thread, and the box for adding to it.
+ *
+ * A new comment is drawn before it is saved and taken from `pending` again
+ * once it is: `addComment` re-renders the page in the same response, so the
+ * saved row is in `resource.comments` by the time the transition ends and
+ * `useOptimistic` empties. That handover is why the two lists can be
+ * concatenated without a comment ever appearing twice.
+ */
 export function ResourceDetail({
   open,
   resource,
@@ -22,7 +33,6 @@ export function ResourceDetail({
   now,
   lookup,
   onClose,
-  onAddComment,
 }: {
   open: boolean;
   resource: Resource | null;
@@ -30,9 +40,11 @@ export function ResourceDetail({
   now: string;
   lookup: (authorId: string) => AuthorInfo;
   onClose: () => void;
-  onAddComment: (resourceId: string, body: string) => void;
 }) {
   const [draft, setDraft] = useState("");
+  const [pending, addPending] = useOptimistic<Comment[]>([]);
+  const [, startTransition] = useTransition();
+  const [postError, setPostError] = useState<string | null>(null);
 
   // Keep showing the last resource while the sheet animates closed: `resource`
   // goes null the instant `openId` clears, but the panel is still on screen for
@@ -43,13 +55,56 @@ export function ResourceDetail({
 
   function post(e: React.FormEvent) {
     e.preventDefault();
-    const body = draft.trim();
+    const body = trimmedBody(draft);
     if (!body || !shown) return;
-    onAddComment(shown.id, body);
+
+    const resourceId = shown.id;
+    // Cleared outside the transition so the box empties on this frame; a
+    // useState setter called inside one waits for the action to finish.
     setDraft("");
+    setPostError(null);
+
+    startTransition(async () => {
+      addPending((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          authorId: user.id,
+          // The browser's clock, for the moment before the saved row arrives
+          // with the database's own. Anything at or after the page's `now`
+          // reads "just now", which is what this is.
+          createdAt: new Date().toISOString(),
+          body,
+        },
+      ]);
+
+      // Caught rather than allowed to escape: an error thrown out of an async
+      // transition goes to the nearest error boundary, and a dispatch that
+      // never reached the action — offline, or a 500 — would take the whole
+      // page down over one comment. Designed boundaries are Step 7; losing
+      // the sheet is not the failure this deserves either way.
+      try {
+        const result = await addComment(resourceId, body);
+        if (result.status === "error") failed(body, result.formError);
+      } catch (error) {
+        console.warn("[comments] could not post a comment", error);
+        failed(body, "That comment didn't save. Please try again.");
+      }
+    });
   }
 
-  const count = shown?.comments.length ?? 0;
+  /**
+   * The optimistic comment disappears when the transition ends, so hand the
+   * words back rather than letting them go with it. Only if the box is still
+   * empty: they may have started typing something else meanwhile.
+   */
+  function failed(body: string, why: string) {
+    setDraft((current) => (current === "" ? body : current));
+    setPostError(why);
+  }
+
+  const comments = shown ? [...shown.comments, ...pending] : [];
+  const count = comments.length;
 
   return (
     <Sheet open={open} onClose={onClose} label="Resource detail">
@@ -81,10 +136,15 @@ export function ResourceDetail({
                     Be the first to respond. A short note is plenty.
                   </p>
                 ) : null}
-                {shown.comments.map((c) => {
+                {comments.map((c) => {
                   const a = lookup(c.authorId);
                   return (
-                    <div key={c.id} className="flex gap-3">
+                    <div
+                      key={c.id}
+                      className={`flex gap-3 ${
+                        pending.includes(c) ? "opacity-60" : ""
+                      }`}
+                    >
                       <Avatar person={a} size={30} />
                       <div className="min-w-0">
                         <p className="flex items-center gap-2">
@@ -106,21 +166,31 @@ export function ResourceDetail({
             </div>
           </div>
 
-          <form
-            onSubmit={post}
-            className="flex flex-none items-center gap-2.5 border-t border-line px-6 py-3.5 sm:px-8"
-          >
-            <Avatar person={user} size={32} />
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Add a comment…"
-              className={inputClass}
-            />
-            <Button type="submit" size="sm" disabled={!draft.trim()}>
-              Post
-            </Button>
-          </form>
+          <div className="flex-none border-t border-line">
+            {postError ? (
+              <p
+                role="alert"
+                className="px-6 pt-2.5 font-body text-[12.5px] text-warn sm:px-8"
+              >
+                {postError}
+              </p>
+            ) : null}
+            <form
+              onSubmit={post}
+              className="flex items-center gap-2.5 px-6 py-3.5 sm:px-8"
+            >
+              <Avatar person={user} size={32} />
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Add a comment…"
+                className={inputClass}
+              />
+              <Button type="submit" size="sm" disabled={!trimmedBody(draft)}>
+                Post
+              </Button>
+            </form>
+          </div>
         </>
       ) : null}
     </Sheet>
