@@ -11,7 +11,7 @@ import { ResourceCard } from "@/components/library/resource-card";
 import { ResourceDetail } from "@/components/library/resource-detail";
 import { MemberNav } from "@/components/member-nav";
 import { Button } from "@/components/ui/button";
-import { loadOlderMessages } from "@/app/actions/messages";
+import { loadNewestMessages, loadOlderMessages } from "@/app/actions/messages";
 import type { CircleEvent, Member, MessagePage, Resource } from "@/lib/data";
 import {
   MONTHS_SHORT,
@@ -210,6 +210,7 @@ export function HomeView({
           <CircleChat
             initialPage={messagePage}
             loadOlder={loadOlderMessages}
+            loadNewest={loadNewestMessages}
             user={user}
             now={now}
             lookup={lookup}

@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -11,13 +12,26 @@ import {
 import { sendMessage } from "@/app/actions/messages";
 import { Avatar } from "@/components/avatar";
 import type { AuthorInfo } from "@/components/library/kinds";
-import { isPending, PENDING_ID_PREFIX } from "@/lib/chat";
+import {
+  chatReducer,
+  initialHistory,
+  isPending,
+  PENDING_ID_PREFIX,
+} from "@/lib/chat";
 import type { Member, Message, MessagePage } from "@/lib/data";
+import { useLiveMessages } from "@/lib/live-messages";
 import { circleDate, formatDayLabel, formatTime } from "@/lib/time";
 import { trimmedBody } from "@/lib/validation";
 
 /** Fixed height of the chat card, so new messages scroll rather than grow it. */
 const CHAT_HEIGHT = "h-[750px]";
+
+/**
+ * How close to the bottom counts as "at the bottom", in pixels. Someone else's
+ * message scrolls into view only from here: a member reading back through the
+ * history should not be pulled away from it by every new arrival.
+ */
+const NEAR_BOTTOM = 80;
 
 function DayDivider({ label }: { label: string }) {
   return (
@@ -88,10 +102,16 @@ function Bubble({
  * older pages accumulate on top, so a re-rendered Home cannot replace it. A
  * sent message is therefore drawn here first and reconciled with the row the
  * database saves — which is also what stops it appearing twice.
+ *
+ * Everyone else's messages arrive live (`useLiveMessages`), and each time that
+ * connection opens the chat re-reads the newest page through `loadNewest` to
+ * fill in whatever was said while it was closed. How all three sources settle
+ * into one list is `chatReducer`'s job, in `lib/chat.ts`.
  */
 export function CircleChat({
   initialPage,
   loadOlder,
+  loadNewest,
   user,
   now,
   lookup,
@@ -99,15 +119,18 @@ export function CircleChat({
 }: {
   initialPage: MessagePage;
   loadOlder: (cursor: string) => Promise<MessagePage>;
+  loadNewest: () => Promise<MessagePage>;
   user: Member;
   /** The page's render instant, for "Today" and "Yesterday". */
   now: string;
   lookup: (id: string) => AuthorInfo;
   className?: string;
 }) {
-  const [messages, setMessages] = useState<Message[]>(initialPage.messages);
-  const [cursor, setCursor] = useState<string | null>(initialPage.nextCursor);
-  const [hasMore, setHasMore] = useState(initialPage.hasMore);
+  const [{ messages, cursor, hasMore }, dispatch] = useReducer(
+    chatReducer,
+    initialPage,
+    initialHistory,
+  );
   const [loadingOlder, setLoadingOlder] = useState(false);
   // Set when a page of history fails to load, and cleared only by the member
   // choosing to try again. Without it, the observer below retries on its own:
@@ -125,23 +148,38 @@ export function CircleChat({
   // Coordinates the post-render scroll adjustment with what just changed.
   const didInit = useRef(false);
   const prependFromHeight = useRef<number | null>(null);
+  const firstId = useRef(messages[0]?.id);
   const stickBottom = useRef(false);
 
-  // Keep the viewport steady: pin to the bottom on first paint and after we
-  // send; after prepending older messages, offset scrollTop by the growth so
-  // the message the member was reading stays put.
+  // Keep the viewport steady: pin to the bottom on first paint, after we send,
+  // and when a message arrives while the member is already there; after
+  // prepending older messages, offset scrollTop by the growth so the message
+  // the member was reading stays put.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    // Older history went in above only if the old first message is still
+    // here. Catching up can replace the list outright, which changes the first
+    // message too, and there is no reading position to hold across that.
+    const previousFirst = firstId.current;
+    const prependedAbove =
+      messages[0]?.id !== previousFirst &&
+      messages.some((m) => m.id === previousFirst);
+    firstId.current = messages[0]?.id;
     if (!didInit.current) {
       el.scrollTop = el.scrollHeight;
       didInit.current = true;
       return;
     }
     if (prependFromHeight.current !== null) {
-      el.scrollTop += el.scrollHeight - prependFromHeight.current;
-      prependFromHeight.current = null;
-      return;
+      if (prependedAbove) {
+        el.scrollTop += el.scrollHeight - prependFromHeight.current;
+        prependFromHeight.current = null;
+        return;
+      }
+      // A message arrived below while the older page is still loading. That
+      // growth is not above the reader, so measure the prepend from here.
+      prependFromHeight.current = el.scrollHeight;
     }
     if (stickBottom.current) {
       el.scrollTop = el.scrollHeight;
@@ -149,19 +187,42 @@ export function CircleChat({
     }
   }, [messages]);
 
+  /** Whether the member is reading the newest messages, not the history. */
+  function atBottom(): boolean {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM;
+  }
+
+  useLiveMessages({
+    onMessage(message) {
+      if (atBottom()) stickBottom.current = true;
+      dispatch({ type: "received", messages: [message] });
+    },
+    async onConnected() {
+      try {
+        const page = await loadNewest();
+        // Measured when the page lands, not when it was asked for: the member
+        // may have scrolled in between.
+        if (atBottom()) stickBottom.current = true;
+        dispatch({ type: "caughtUp", page });
+      } catch (error) {
+        // New messages are still heard; only what was said while the
+        // connection was down is missing, until the next reload.
+        console.warn("[chat] could not catch up on new messages", error);
+      }
+    },
+  });
+
   const fetchOlder = useCallback(async () => {
     if (!hasMore || loadingOlder || loadFailed || cursor === null) return;
     setLoadingOlder(true);
     prependFromHeight.current = scrollRef.current?.scrollHeight ?? 0;
     try {
       const page = await loadOlder(cursor);
-      setMessages((prev) => {
-        const have = new Set(prev.map((m) => m.id));
-        const fresh = page.messages.filter((m) => !have.has(m.id));
-        return [...fresh, ...prev];
-      });
-      setCursor(page.nextCursor);
-      setHasMore(page.hasMore);
+      // The reducer drops this page if catching up replaced the list while it
+      // loaded. Nothing is prepended then, so there is nothing to hold.
+      dispatch({ type: "older", from: cursor, page });
     } catch (error) {
       // Nothing was prepended, so there is no position to hold. Left set, the
       // next message sent would be treated as a prepend and not scrolled into
@@ -203,7 +264,7 @@ export function CircleChat({
    * next thing while this one was in flight.
    */
   function unsend(pendingId: string, body: string, why: string) {
-    setMessages((prev) => prev.filter((m) => m.id !== pendingId));
+    dispatch({ type: "unsent", pendingId });
     setDraft((current) => (current === "" ? body : current));
     setSendError(why);
   }
@@ -217,9 +278,9 @@ export function CircleChat({
     // before the bubble appears is what makes one feel broken.
     const pendingId = `${PENDING_ID_PREFIX}${crypto.randomUUID()}`;
     stickBottom.current = true;
-    setMessages((prev) => [
-      ...prev,
-      {
+    dispatch({
+      type: "drawn",
+      message: {
         id: pendingId,
         authorId: user.id,
         // The browser's clock, for the second or two before the database's own
@@ -230,7 +291,7 @@ export function CircleChat({
         createdAt: new Date().toISOString(),
         body,
       },
-    ]);
+    });
     setDraft("");
     setSendError(null);
 
@@ -240,12 +301,10 @@ export function CircleChat({
         unsend(pendingId, body, result.formError);
         return;
       }
-      // The saved row takes the drawn one's place — same position in the list,
-      // but now with the id and created_at the database assigned. Replacing
-      // rather than appending is what keeps one message from showing twice.
-      setMessages((prev) =>
-        prev.map((m) => (m.id === pendingId ? result.message : m)),
-      );
+      // The saved row takes the drawn one's place, with the id and created_at
+      // the database assigned — unless Realtime delivered it first and the
+      // bubble is already gone. Either way the reducer leaves one copy.
+      dispatch({ type: "sent", pendingId, message: result.message });
     } catch (error) {
       // A dispatch that never made it to the action at all: offline, or a
       // build whose action ids have rotated out from under this tab.
