@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { libraryHref } from "@/lib/search";
+import { libraryHref, normalizeSearch } from "@/lib/search";
 import { cn } from "@/lib/utils";
 
 /** Long enough that a phrase is typed out, short enough to feel immediate. */
@@ -33,6 +33,13 @@ export function SearchBox({ query }: { query: string }) {
   // a query that arrives without matching came from somewhere else, and the
   // box follows it. Without the distinction, syncing from the prop would undo
   // keystrokes made while a navigation was in flight.
+  //
+  // Held *normalised*, because `query` comes back normalised. Holding the raw
+  // text made "grief " and the "grief" the page returned look like two
+  // different searches, so the box took the second for a back-button change
+  // and reset itself — deleting the space, and anything typed after it while
+  // the results were loading. Leading spaces and text past the length cap did
+  // the same.
   const asked = useRef(query);
 
   useEffect(() => {
@@ -42,11 +49,14 @@ export function SearchBox({ query }: { query: string }) {
   }, [query]);
 
   useEffect(() => {
-    if (value === asked.current) return;
+    const next = normalizeSearch(value);
+    // A keystroke that does not change the search — a space, or text past the
+    // cap — changes what is in the box and nothing else.
+    if (next === asked.current) return;
     const timer = setTimeout(() => {
-      asked.current = value;
+      asked.current = next;
       startTransition(() => {
-        router.replace(libraryHref(value), { scroll: false });
+        router.replace(libraryHref(next), { scroll: false });
       });
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
