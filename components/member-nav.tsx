@@ -40,7 +40,10 @@ function NavLink({
   );
 }
 
-/** Member-area header: brand + nav links + profile menu. Mirrors SiteNav. */
+/**
+ * The nav for anyone in the circle, on every page they visit — member pages
+ * and, through `SiteNav`, the public ones too. Brand, links, profile menu.
+ */
 export function MemberNav({ user }: { user: Member }) {
   const pathname = usePathname();
 
@@ -64,9 +67,9 @@ export function MemberNav({ user }: { user: Member }) {
         <NavLink href="/library" active={pathname === "/library"}>
           The Library
         </NavLink>
-        <Link href="/about" className={NAV_LINKS}>
+        <NavLink href="/about" active={pathname === "/about"}>
           About
-        </Link>
+        </NavLink>
 
         <Menu as="div" className="relative">
           <MenuButton

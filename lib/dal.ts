@@ -128,15 +128,18 @@ export const getSignedInMember = cache(async (): Promise<Member> => {
   return toMember(profile);
 });
 
-/** Who is looking at a public page, for choosing which links to offer. */
-export type Viewer = "member" | "signed-in" | "visitor";
+/** Who is looking at a public page, for choosing which nav to show. A member
+ *  comes with their profile in the shape `MemberNav` takes. */
+export type Viewer =
+  | { kind: "member"; member: Member }
+  | { kind: "signed-in" }
+  | { kind: "visitor" };
 
 /**
  * Whether a public page is being viewed by a member, by someone signed in who
  * is not one, or by nobody in particular.
  *
- * **Never a gate.** It decides whether the landing page offers "Sign in" or
- * "Home", and nothing more; every member page still calls `requireApproved()`
+ * **Never a gate.** It decides which nav a public page draws, and nothing more; every member page still calls `requireApproved()`
  * and RLS still decides what comes back. That is also why it swallows a failed
  * profile read where `getOwnProfile()` deliberately throws: there, a database
  * error must not be mistaken for "not on the roster"; here, the worst a wrong
@@ -149,13 +152,15 @@ export type Viewer = "member" | "signed-in" | "visitor";
  */
 export const getViewer = cache(async (): Promise<Viewer> => {
   const session = await verifySession();
-  if (!session) return "visitor";
+  if (!session) return { kind: "visitor" };
   try {
     const profile = await getOwnProfile();
-    return profile?.status === "approved" ? "member" : "signed-in";
+    return profile?.status === "approved"
+      ? { kind: "member", member: toMember(profile) }
+      : { kind: "signed-in" };
   } catch (error) {
     console.warn("[dal] could not tell who is viewing a public page", error);
-    return "signed-in";
+    return { kind: "signed-in" };
   }
 });
 
