@@ -299,7 +299,9 @@ export type Database = {
           book_author: string | null
           created_at: string
           id: string
+          image_height: number | null
           image_path: string | null
+          image_width: number | null
           kind: Database["public"]["Enums"]["resource_kind"]
           quote: string | null
           search: unknown
@@ -313,7 +315,9 @@ export type Database = {
           book_author?: string | null
           created_at?: string
           id?: string
+          image_height?: number | null
           image_path?: string | null
+          image_width?: number | null
           kind: Database["public"]["Enums"]["resource_kind"]
           quote?: string | null
           search?: unknown
@@ -327,7 +331,9 @@ export type Database = {
           book_author?: string | null
           created_at?: string
           id?: string
+          image_height?: number | null
           image_path?: string | null
+          image_width?: number | null
           kind?: Database["public"]["Enums"]["resource_kind"]
           quote?: string | null
           search?: unknown

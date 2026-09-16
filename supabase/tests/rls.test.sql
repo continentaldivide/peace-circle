@@ -8,7 +8,7 @@
 -- Run with: supabase test db
 
 begin;
-select plan(71);
+select plan(91);
 
 -- Seeded fixtures (see supabase/seed.sql).
 --   1111… Lisa  — approved admin
@@ -728,6 +728,261 @@ select is(
       and p.proname = 'redeem_launch_code'),
   'p_code text',
   'redeem_launch_code takes a code and nothing else'
+);
+
+-- ===========================================================================
+-- 9. Storage — the pictures in the Library.
+--    A share's photo is a file, and a file outside the gate is a hole in it.
+--    `storage.objects` is the ninth table these tests cover, and it answers to
+--    the same is_approved() / is_admin() the other eight do.
+--
+--    The cast at this point in the file: Lisa (1111…) is an approved admin,
+--    Cohort Member (aaaa…) and eeee… are approved non-admins from section 8,
+--    dddd… is revoked, 9999… is authenticated with no profile. Ruth (2222…)
+--    is not used here — section 7 left her an admin.
+-- ===========================================================================
+
+-- The decision the policies below exist to enforce, asserted directly. A
+-- public bucket hands out object URLs that work for anyone holding them, with
+-- no session and no policy consulted; flipping this one boolean would route
+-- every picture in the circle around everything else in this file, and would
+-- break no other test.
+select is(
+  (select public from storage.buckets where id = 'images'),
+  false,
+  'the images bucket is private'
+);
+
+-- The composer only ever uploads a JPEG, but the composer is a form and anyone
+-- can call the storage API without it. SVG is the one that matters: it is a
+-- document that can carry script, and these are served from the app's origin.
+select ok(
+  (select not ('image/svg+xml' = any(allowed_mime_types))
+     from storage.buckets where id = 'images'),
+  'the images bucket refuses SVG uploads'
+);
+
+insert into storage.objects (bucket_id, name, owner, metadata)
+values
+  ('images',
+   '11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000001.jpg',
+   '11111111-1111-1111-1111-111111111111',
+   '{"mimetype":"image/jpeg"}'::jsonb),
+  ('images',
+   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000002.jpg',
+   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   '{"mimetype":"image/jpeg"}'::jsonb);
+
+-- ---------------------------------------------------------------------------
+-- Nobody outside the circle sees a picture, or leaves one behind.
+-- ---------------------------------------------------------------------------
+
+set local role anon;
+set local request.jwt.claims = '';
+
+select is((select count(*) from storage.objects), 0::bigint,
+  'anon reads no stored images');
+
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name)
+    values ('images', 'anon/anon.jpg')$$,
+  '42501',
+  null,
+  'anon cannot upload an image'
+);
+
+reset role;
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}';
+
+select is((select count(*) from storage.objects), 0::bigint,
+  'un-approved user reads no stored images');
+
+-- Their own folder name is not the point: the policy asks is_approved() first.
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name)
+    values ('images',
+      '99999999-9999-9999-9999-999999999999/f1000000-0000-0000-0000-000000000009.jpg')$$,
+  '42501',
+  null,
+  'un-approved user cannot upload an image, even under their own id'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- An approved member sees every picture, and writes only their own.
+-- ---------------------------------------------------------------------------
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+
+-- Every picture, not only their own: a share is posted to the whole circle.
+select is((select count(*) from storage.objects), 2::bigint,
+  'approved member reads every stored image');
+
+select lives_ok(
+  $$insert into storage.objects (bucket_id, name)
+    values ('images',
+      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000003.jpg')$$,
+  'approved member may upload into their own folder'
+);
+
+-- The folder is the author. An upload under someone else's id would let a
+-- member attach a file to the circle in another member's name.
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name)
+    values ('images',
+      '11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000004.jpg')$$,
+  '42501',
+  null,
+  'member cannot upload into another member''s folder'
+);
+
+-- There is no update policy, on purpose: an object is immutable, and renaming
+-- one is how a member would move a file into another member's folder after the
+-- fact. RLS filters the row out rather than raising, so this counts.
+update storage.objects
+   set name = '11111111-1111-1111-1111-111111111111/stolen.jpg'
+ where name = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000003.jpg';
+
+select is(
+  (select count(*) from storage.objects
+     where name = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000003.jpg'),
+  1::bigint,
+  'member cannot rename their own object out of their folder'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Revocation closes the bucket too.
+-- ---------------------------------------------------------------------------
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
+
+select is((select count(*) from storage.objects), 0::bigint,
+  'revoked member reads no stored images');
+
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name)
+    values ('images',
+      'dddddddd-dddd-dddd-dddd-dddddddddddd/f1000000-0000-0000-0000-000000000005.jpg')$$,
+  '42501',
+  null,
+  'revoked member cannot upload an image'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Deleting a picture.
+--
+-- Storage guards its own tables with a statement trigger that refuses any
+-- direct SQL delete and tells you to use the Storage API. That is asserted
+-- here because it is load-bearing for the app: it is why deleting a share
+-- cannot take its file with it through a cascade or a trigger, and why the
+-- code that removes a row has to remove the object itself first. The GUC
+-- below is the trigger's own escape hatch, used so the policies underneath it
+-- can still be tested.
+-- ---------------------------------------------------------------------------
+
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+
+select throws_ok(
+  $$delete from storage.objects
+     where name = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000003.jpg'$$,
+  '42501',
+  null,
+  'storage refuses a direct SQL delete, whoever is asking'
+);
+
+set local storage.allow_delete_query = 'true';
+
+delete from storage.objects
+ where name = '11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000001.jpg';
+
+select is(
+  (select count(*) from storage.objects
+     where name = '11111111-1111-1111-1111-111111111111/f1000000-0000-0000-0000-000000000001.jpg'),
+  1::bigint,
+  'member cannot delete another member''s image'
+);
+
+delete from storage.objects
+ where name = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000003.jpg';
+
+select is(
+  (select count(*) from storage.objects
+     where name = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000003.jpg'),
+  0::bigint,
+  'member may delete their own image'
+);
+
+reset role;
+
+-- Moderation: an admin may remove anyone's picture, matching
+-- resources_delete_own_or_admin on the row that points at it.
+set local role authenticated;
+set local request.jwt.claims =
+  '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+set local storage.allow_delete_query = 'true';
+
+delete from storage.objects
+ where name = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000002.jpg';
+
+select is(
+  (select count(*) from storage.objects
+     where name = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/f1000000-0000-0000-0000-000000000002.jpg'),
+  0::bigint,
+  'an admin may delete another member''s image'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- The row's half: a path and the shape of what it points at travel together.
+-- ---------------------------------------------------------------------------
+
+select throws_ok(
+  $$insert into public.resources (author_id, kind, title, image_path)
+    values ('11111111-1111-1111-1111-111111111111', 'picture', 'No dimensions',
+            '11111111-1111-1111-1111-111111111111/f2.jpg')$$,
+  '23514',
+  null,
+  'an image path with no dimensions is refused'
+);
+
+select throws_ok(
+  $$insert into public.resources (author_id, kind, title, image_width, image_height)
+    values ('11111111-1111-1111-1111-111111111111', 'picture', 'No path',
+            800, 600)$$,
+  '23514',
+  null,
+  'dimensions with no image path are refused'
+);
+
+select lives_ok(
+  $$insert into public.resources
+      (author_id, kind, title, image_path, image_width, image_height)
+    values ('11111111-1111-1111-1111-111111111111', 'picture', 'A whole picture',
+            '11111111-1111-1111-1111-111111111111/f3.jpg', 1600, 1200)$$,
+  'a path with both dimensions is accepted'
+);
+
+-- Every picture in the Library today has no image at all, and adding uploads
+-- must not have stranded them.
+select lives_ok(
+  $$insert into public.resources (author_id, kind, title)
+    values ('11111111-1111-1111-1111-111111111111', 'picture', 'Still no image')$$,
+  'a picture share with no image at all is still accepted'
 );
 
 select * from finish();
