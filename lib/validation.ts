@@ -1,6 +1,6 @@
 /**
- * The rules for the two things every form here collects: a person's name and
- * their email address.
+ * The rules for the things more than one form here collects: a person's name,
+ * their email address, and the free-text body of a comment or a chat message.
  *
  * They live in one module because two forms now ask for them — the public
  * interest form and the launch-code step on /welcome — and because both values
@@ -54,4 +54,21 @@ export function emailError(value: string): string | undefined {
     return "Please write your email address on a single line.";
   }
   return undefined;
+}
+
+/**
+ * A comment or chat message, trimmed, or null when there is nothing to save.
+ *
+ * Both tables carry the same `length(btrim(body)) > 0` check, so both writes
+ * ask the same question, and both forms ask it before they will submit. It
+ * returns the trimmed value rather than a boolean so the caller stores exactly
+ * what was checked — trimming twice, in two places, is how the check and the
+ * insert drift apart.
+ *
+ * Deliberately no ceiling: `comments.body` and `messages.body` have none
+ * either, and the circle would rather someone wrote too much than be cut off.
+ */
+export function trimmedBody(value: string): string | null {
+  const body = value.trim();
+  return body.length > 0 ? body : null;
 }
