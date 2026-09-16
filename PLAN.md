@@ -4,9 +4,10 @@ A web app for the Peace Circle community group: a place for approved members to
 share resources (quotes, links, pictures, books), discuss them, and track
 upcoming gatherings.
 
-The UI is built, the database schema is in place, the access gate is real, and
-every page both reads and writes real data. What remains is search and uploads,
-admin tools, and launch. This document is the plan for that work.
+The UI is built, the database schema is in place, the access gate is real, every
+page both reads and writes real data, the Library is searchable, and pictures
+are real files. What remains is admin tools and launch. This document is the
+plan for that work.
 
 ---
 
@@ -106,10 +107,11 @@ them go red. Run with `supabase test db`.
 
 ## Status
 
-Steps 1–5 are done: there is a hosted Supabase project with the schema pushed,
-the access gate is real, both ways into the circle work, and every member page
-reads and writes real data. Member pages are server components that call
-`requireApproved()` before rendering, backed by RLS.
+Steps 1–6 are done: there is a hosted Supabase project with the schema pushed,
+the access gate is real, both ways into the circle work, every member page reads
+and writes real data, and the Library both searches and holds photographs.
+Member pages are server components that call `requireApproved()` before
+rendering, backed by RLS.
 
 Onboarding is complete end to end, verified in a browser against the local
 stack rather than reasoned about:
@@ -177,6 +179,72 @@ knowing:
   not http(s) is refused. The column is plain text, one member writes it and
   another opens it, and `javascript:` is a script rather than an address.
 
+Search and pictures are real (Step 6). Things worth knowing:
+
+- **Search is a URL, not a state variable.** `?q=` is read on the server by
+  `app/library/page.tsx` and passed to `getResources({ search })`, so a result
+  set is shareable, survives the `refresh()` a new share ends in, and stays
+  where the `resources_search_idx` GIN index is. `lib/search.ts` normalises the
+  param in one place — an empty or whitespace query means _everything_, not
+  nothing.
+- **`websearch_to_tsquery`, not the other two.** A person types into this box.
+  `to_tsquery` raises a syntax error on a stray dash or apostrophe, so a typo
+  would be a 500; `plainto_tsquery` never raises but discards the punctuation,
+  so a quoted phrase or a typed "or" would do nothing. `websearch_to_tsquery`
+  accepts any input by specification and reads quotes, "or" and a leading dash
+  the way every other search box does — which is why the query is passed through
+  unescaped.
+- **The kind chips stay client-side, and their counts are counts within
+  results.** The list handed to `LibraryView` is already what the query matched,
+  so "Quotes 2" means two of these. Results stay newest-first rather than ranked:
+  the Library is a chronological feed a search narrows, and ranking would need an
+  RPC, putting a read outside the seam.
+
+- **The `images` bucket is private.** This is the load-bearing decision. A
+  public bucket serves every object at a guessable URL that works for anyone
+  holding it, with no session and no policy consulted, which would route the
+  circle's photographs around the gate entirely. The policies on
+  `storage.objects` (created in the same migration as the bucket, because
+  `config.toml` is never pushed) route through the same `is_approved()` /
+  `is_admin()` as the other eight tables. Objects are named
+  `<author_id>/<uuid>.jpg`, so `storage.foldername(name)[1]` is the uploader and
+  "your own file" is something a policy can check.
+- **An image URL is a route of this app's:** `/api/images/<path>`, which checks
+  the gate and streams the object through the member's own session. One stable
+  address per picture, cacheable by the browser. The alternative — a signed URL
+  minted per render — is a different string every time, expires while the page
+  holding it is still open, and puts a token in the RSC payload.
+- **Nothing optimizes these images.** Next's optimizer fetches an image's `src`
+  without forwarding the request's headers, so it reaches that route with no
+  session and is turned away. Pictures are drawn `unoptimized`, and what takes
+  optimization's place is the browser scaling the photo to 1200px and
+  re-encoding it as a JPEG _before_ it is uploaded. `next.config.ts` is still
+  empty and now says why, including that `dangerouslyAllowLocalIP` is not needed
+  and that spelling the local Supabase URL `localhost` would not have sidestepped
+  it anyway — the check is a DNS lookup followed by a private-address test.
+- **The bytes never pass through a Server Action.** An action's body is capped at
+  1 MB. The browser uploads straight to Storage with its own session — which is
+  what storage RLS checks — and the action receives a path, which it validates
+  for shape and then for ownership, since nothing stops a caller _claiming_ a
+  path that is already there.
+- **Deleting a share does not delete its object, and cannot be made to.**
+  Storage guards its own tables with a trigger that refuses any direct SQL
+  delete and says to use the Storage API, so a cascade or a row trigger is not
+  available — the gate tests assert this, and the comment on
+  `resources.image_path` says it in the schema. **Whoever deletes a share must
+  remove its object through the Storage API first.** Step 7's moderation is the
+  first thing that will. The composer already does it in the one case that
+  exists today: an upload that succeeded followed by an insert that did not.
+- **`PictureResource.placeholder` is gone.** It was a restatement of the title,
+  so it is derived in `resource-body.tsx` now; the seam carries `image`, which is
+  optional. A picture share with no photo is an ordinary share — both pictures in
+  the Library are one — and it draws the striped filler it always did.
+- **A picture's dimensions are stored** (`image_width`, `image_height`), so
+  `next/image` reserves the photo's real shape and nothing below it moves when
+  the bytes land. A check constraint keeps all three columns together, and they
+  are deliberately not tied to `kind`, because a book cover is the obvious next
+  thing to want one.
+
 Three deliberate omissions, so they are not mistaken for oversights:
 
 - **No per-IP rate limit on `/join`.** It would need its own table, since
@@ -193,18 +261,17 @@ Three deliberate omissions, so they are not mistaken for oversights:
 
 Still stubbed or missing:
 
-- **No uploads.** Picture resources carry a `placeholder` derived from the
-  title; the composer's drop zone is decorative (Step 6).
-- **No search.** The Library filters by kind in memory (Step 6).
+- **Storage does not exist on the hosted project yet.** The bucket and its
+  policies are in a migration, so `db push` creates them there; nothing has been
+  pushed. Until it is, a hosted upload has nowhere to go.
 - **Nothing is emailed from the hosted project yet.** The outgoing seam is
   built (`lib/email.ts`) and `/join` uses it, but without `RESEND_API_KEY` it
   logs instead of sending, and Supabase Auth still uses its own sender — the
   dashboard SMTP switch waits on a verified sending domain. Locally this is
   moot: `supabase start` catches every auth mail in Mailpit.
-- **The hosted project is behind the repo.** Four migrations exist locally and
-  have not been `db push`ed: the admin allowlist, the inquiry length limits,
-  the launch-code redemption, and the profile field limits. Until the first of
-  those lands, `admin_emails` is empty there and nobody can become an admin.
+- **The hosted project is behind the repo.** The four Step 3 migrations _have_
+  been pushed. The Step 6 one — the image columns, the `images` bucket and its
+  storage policies — has not.
   The hosted invite email template
   also needs setting by hand in the dashboard to point at `/auth/confirm` —
   `config.toml` describes the local stack and is never pushed, so an invite
@@ -328,12 +395,22 @@ The chat keeps its optimistic send, so it stays feeling like a group text.
 
 ### Step 6 — Search and uploads
 
-- Full-text search over the `resources.search` tsvector, wired into the
-  Library's existing filter bar.
-- Real image uploads to Supabase Storage; replace `PictureResource.placeholder`
-  with `image_path` and render via `next/image`. Note Next 16 changed
-  `next/image` defaults (`minimumCacheTTL`, `imageSizes`, `qualities`, and local
-  images with query strings).
+_Done._ Full-text search over the `resources.search` tsvector, wired into the
+Library's filter bar as a `?q=` search param read on the server; and real image
+uploads to a **private** Supabase Storage bucket, created with its policies in a
+migration so they reach the hosted project. See Status for what each decided.
+
+The short version: the query lives in the URL and goes to Postgres through
+`getResources()`, while the kind chips stay in the browser; and because the
+bucket is private, pictures are served by `/api/images/[...path]` behind the
+gate and drawn `unoptimized`, with the scaling done in the browser before upload
+instead of by Next afterwards.
+
+> **The `next/image` note that used to be here was half right.** Next 16 did
+> change `minimumCacheTTL`, `imageSizes`, `qualities`, `remotePatterns` and
+> local images with query strings — and none of it applies, because nothing goes
+> through the optimizer. `next.config.ts` is empty on purpose and explains
+> itself.
 
 ### Step 7 — Admin & polish
 
@@ -341,6 +418,10 @@ The chat keeps its optimistic send, so it stays feeling like a group text.
   (`new → reviewing → invited → joined` / `declined`), the Invite action
   (`inviteUserByEmail` + branded Resend template), moderation (delete a
   share/comment), and event management.
+- **Deleting a picture share must remove its object through the Storage API
+  before the row.** Nothing in the database can do it — storage refuses a direct
+  SQL delete — so a delete that forgets leaves a file in the bucket forever with
+  nothing pointing at it. See Status.
 - Write the `/about` page.
 - Empty states, error boundaries, and a mobile pass.
 - Replace the create-next-app boilerplate in `README.md`.
