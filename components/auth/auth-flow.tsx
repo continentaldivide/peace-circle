@@ -42,9 +42,11 @@ export function AuthFlow({ initialError }: { initialError?: string }) {
     const { error: sendError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
-        // Must be on the project's redirect allow list, or Supabase falls back
-        // to the Site URL and the code never reaches our callback.
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // The email template builds its link on this, so it must be on the
+        // project's redirect allow list — otherwise Supabase substitutes the
+        // Site URL and the link is broken. It must also carry a query, since
+        // the template appends `&token_hash=`. See supabase/templates/.
+        emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/home")}`,
       },
     });
 

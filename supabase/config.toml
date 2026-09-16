@@ -260,6 +260,17 @@ otp_expiry = 3600
 subject = "You've been invited to the Peace Circle"
 content_path = "./supabase/templates/invite.html"
 
+# Sign-in links go to /auth/confirm on this site too, for a different reason:
+# a link to supabase.co in mail sent from our own domain is a spam signal. See
+# supabase/templates/magic-link.html. The same dashboard caveat applies to both.
+[auth.email.template.magic_link]
+subject = "Your link to the Peace Circle"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.confirmation]
+subject = "Welcome to the Peace Circle"
+content_path = "./supabase/templates/confirmation.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

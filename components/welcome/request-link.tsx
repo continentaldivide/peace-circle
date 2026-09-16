@@ -14,11 +14,9 @@ import { emailError, nameError } from "@/lib/validation";
  * The launch code's first step: who you are, and where to send the link.
  *
  * The code has to survive a round trip through an inbox, and it does that in
- * the `next` parameter `app/auth/callback/route.ts` already understands —
- * Supabase appends its own `?code=` for the session exchange, so the callback
- * arrives holding both. They are different `code`s, which is worth knowing
- * when reading that URL: the one in the query is Supabase's one-time PKCE
- * code, and the launch code is inside `next`.
+ * the `next` parameter `app/auth/confirm/route.ts` already understands. The
+ * email template appends the token hash to this URL, so the link arrives
+ * holding both.
  *
  * The name rides along in `signInWithOtp`'s `data`, which lands in the auth
  * user's `raw_user_meta_data` — where `redeem_launch_code` reads it when it
@@ -65,8 +63,8 @@ export function RequestLink({ code }: { code: string }) {
       options: {
         data: { name: name.trim() },
         // Must be on the project's redirect allow list, or Supabase silently
-        // falls back to the Site URL and the link lands somewhere else.
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        // substitutes the Site URL and the emailed link is broken.
+        emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`,
       },
     });
 

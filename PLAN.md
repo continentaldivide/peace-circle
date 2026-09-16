@@ -120,8 +120,8 @@ stack rather than reasoned about:
   `inquiries` row and emails the admin notify list with reply-to set to the
   applicant.
 - **`/welcome` handles both ways in.** `?code=` collects a name and email,
-  sends a magic link that carries the code back through the callback's `next`
-  parameter, redeems it, and ends on the finish-profile step. An invite link
+  sends a magic link that carries the code back through `/auth/confirm`'s
+  `next` parameter, redeems it, and ends on the finish-profile step. An invite link
   lands on `/auth/confirm`, which turns its token hash into a session and
   joins the same finish step.
 - **Redemption is atomic and lives in the database.** `redeem_launch_code()`
