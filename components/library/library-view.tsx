@@ -168,6 +168,7 @@ export function LibraryView({
         onClose={() => setOpenId(null)}
       />
       <Composer
+        user={user}
         open={composing}
         onClose={() => setComposing(false)}
         onCreated={openCreated}

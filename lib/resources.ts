@@ -11,6 +11,7 @@
  */
 
 import type { ResourceKind } from "@/lib/data/types";
+import { isImageObjectName } from "@/lib/images";
 
 /**
  * Everything the composer collects, across every kind — one flat draft rather
@@ -37,10 +38,25 @@ export const RESOURCE_FIELDS: readonly ResourceField[] = [
   "note",
 ];
 
-export type ResourceDraft = { kind: ResourceKind } & Record<
-  ResourceField,
-  string
->;
+/**
+ * An uploaded picture, as the composer hands it to the action.
+ *
+ * A path, not a file. The browser puts the bytes in Storage itself — its
+ * session is what the storage policies check — so what crosses into the action
+ * is a name and the shape of what is behind it.
+ */
+export type DraftImage = {
+  path: string;
+  width: number;
+  height: number;
+};
+
+export type ResourceDraft = {
+  kind: ResourceKind;
+  /** Present only when a picture was uploaded before posting. Optional
+   *  because a picture share with no photo is an ordinary share. */
+  image?: DraftImage;
+} & Record<ResourceField, string>;
 
 export const emptyResourceDraft: ResourceDraft = {
   kind: "quote",
@@ -94,7 +110,34 @@ export function isResourceDraft(value: unknown): value is ResourceDraft {
   if (typeof value !== "object" || value === null) return false;
   const draft = value as Record<string, unknown>;
   if (!KINDS.includes(draft.kind as ResourceKind)) return false;
+  if (draft.image !== undefined && !isDraftImage(draft.image)) return false;
   return RESOURCE_FIELDS.every((field) => typeof draft[field] === "string");
+}
+
+/** A sanity bound on a claimed picture's dimensions — far past any camera, and
+ *  short of the numbers that make a reserved aspect box absurd. */
+const MAX_DIMENSION = 20000;
+
+/**
+ * The image half of the draft, checked the same way and for the same reason.
+ *
+ * Whether the path is *this member's* is the action's question, not this one's:
+ * it takes the session, and this function does not. What is settled here is
+ * that the path is shaped like something this app writes at all, so a name
+ * with a traversal or a `.svg` on the end never reaches the column.
+ */
+function isDraftImage(value: unknown): value is DraftImage {
+  if (typeof value !== "object" || value === null) return false;
+  const image = value as Record<string, unknown>;
+  if (typeof image.path !== "string" || !isImageObjectName(image.path)) {
+    return false;
+  }
+  return [image.width, image.height].every(
+    (n) =>
+      Number.isSafeInteger(n) &&
+      (n as number) > 0 &&
+      (n as number) <= MAX_DIMENSION,
+  );
 }
 
 /**

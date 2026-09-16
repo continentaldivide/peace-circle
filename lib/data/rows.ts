@@ -163,8 +163,10 @@ export type ResourceInsert = Tables["resources"]["Insert"];
  * field for is simply left out, so a url typed under the Link chip cannot ride
  * along on a quote the member changed their mind into.
  *
- * `image_path` is nobody's yet: the composer's drop zone is decorative and
- * real uploads are Step 6.
+ * A picture's `image_path` is the one field here that names something outside
+ * the row, and only the picture branch reads it — an image uploaded under the
+ * Picture chip cannot ride along on a quote the member changed their mind
+ * into, for the same reason a url cannot.
  */
 export function toResourceInsert(
   draft: ResourceDraft,
@@ -206,6 +208,12 @@ export function toResourceInsert(
         kind: "picture",
         title: draft.title.trim(),
         body,
+        // All three together or all three null — `resources_image_shape` will
+        // not have it any other way, and a picture with no photo at all is an
+        // ordinary share rather than a half-finished one.
+        image_path: draft.image?.path ?? null,
+        image_width: draft.image?.width ?? null,
+        image_height: draft.image?.height ?? null,
       };
     case "book":
       return {

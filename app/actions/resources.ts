@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 
 import { requireApproved } from "@/lib/dal";
 import { toResourceInsert } from "@/lib/data/rows";
+import { imageObjectOwner } from "@/lib/images";
 import type {
   CommentResult,
   ResourceDraft,
@@ -50,6 +51,21 @@ export async function createResource(
     return {
       status: "error",
       formError: "Some of that wasn't quite right. Please try again.",
+    };
+  }
+
+  // The one thing in a draft that names something outside it. The storage
+  // policies stop a member writing into another member's folder, but nothing
+  // stops them *claiming* a path that is already there — and a picture whose
+  // file belongs to someone else is a share attributed to the wrong person.
+  // The folder is the uploader, so this is the whole of the check.
+  if (draft.image && imageObjectOwner(draft.image.path) !== userId) {
+    console.warn(
+      `[resources] ${userId} claimed an image outside their own folder`,
+    );
+    return {
+      status: "error",
+      formError: "Something went wrong with that picture. Please try again.",
     };
   }
 
