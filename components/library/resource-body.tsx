@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Avatar } from "@/components/avatar";
 import { KIND_LABELS, type AuthorInfo } from "@/components/library/kinds";
 import type { Resource, ResourceKind } from "@/lib/data";
+import { normalizeUrl } from "@/lib/resources";
 import { formatRelative } from "@/lib/time";
 
 const TITLE = "font-display text-[19px] font-semibold leading-[1.22] text-ink";
@@ -91,13 +92,49 @@ export function ResourceBody({ r }: { r: Resource }) {
       return (
         <div className="mt-2.5">
           <h3 className={`mb-1.5 ${TITLE}`}>{r.title}</h3>
-          <span className="mb-2.5 inline-block font-mono text-[11.5px] text-accent">
-            {r.url} ↗
-          </span>
+          <ShareLink url={r.url} />
           {r.body ? <p className={TEXT}>{r.body}</p> : null}
         </div>
       );
   }
+}
+
+const LINK_TEXT = "mb-2.5 inline-block font-mono text-[11.5px] text-accent";
+
+/**
+ * A link share's address, as a link that works.
+ *
+ * The `href` is `normalizeUrl`'s reading of the stored value, not the value
+ * itself. Addresses saved since Step 5 are already normalised, but the column
+ * is plain text and older rows are not: the seeded one is `plumvillage.org`,
+ * which as an `href` would resolve against this site. `normalizeUrl` is also
+ * what refuses anything but http(s), so a stored `javascript:` stays inert
+ * text here instead of becoming a script someone else clicks.
+ *
+ * A new tab, so the member keeps their place in the Library; `noreferrer`,
+ * so the site they visit is not told which page of the circle sent them — the
+ * URL can carry a search.
+ *
+ * It sits inside a card that is itself a button, so it keeps its own clicks
+ * and keypresses: without `stopPropagation` a click would also open the
+ * share's detail sheet, and the card's Enter handler would `preventDefault`
+ * the keypress before the link could follow it.
+ */
+function ShareLink({ url }: { url: string }) {
+  const href = normalizeUrl(url);
+  if (!href) return <span className={LINK_TEXT}>{url}</span>;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      className={`${LINK_TEXT} underline-offset-2 hover:underline`}
+    >
+      {url} ↗
+    </a>
+  );
 }
 
 export function CardMeta({
