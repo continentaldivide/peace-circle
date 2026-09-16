@@ -87,6 +87,11 @@ export function Composer({
     e.preventDefault();
     if (pending) return;
 
+    // Whatever the server said last time was about the last attempt. Cleared
+    // here rather than only on success, so it does not sit above a field
+    // complaint, or above "Sharing…" while this attempt is still in flight.
+    setFormError(null);
+
     if (Object.keys(errors).length > 0) {
       // Nothing is sent, so there is no round trip to lose — show every
       // outstanding problem at once instead.
@@ -118,7 +123,6 @@ export function Composer({
       onCreated(result.id);
       setDraft(emptyResourceDraft);
       setTouched({});
-      setFormError(null);
     });
   }
 
