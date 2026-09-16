@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Composer } from "@/components/library/composer";
@@ -7,6 +8,7 @@ import { FilterBar } from "@/components/library/filter-bar";
 import type { AuthorInfo } from "@/components/library/kinds";
 import { ResourceCard } from "@/components/library/resource-card";
 import { ResourceDetail } from "@/components/library/resource-detail";
+import { SearchBox } from "@/components/library/search-box";
 import { MemberNav } from "@/components/member-nav";
 import { RingMark } from "@/components/ring-mark";
 import { Button } from "@/components/ui/button";
@@ -17,16 +19,20 @@ type Filter = ResourceKind | "all";
 export function LibraryView({
   user,
   now,
+  query,
   resources,
   members,
 }: {
   user: Member;
   /** ISO instant the page was rendered at; see `lib/time.ts`. */
   now: string;
+  /** The search behind these results, normalised; "" is the whole Library. */
+  query: string;
   /**
-   * The Library as the server has it. Not copied into state: a new share or
-   * comment ends in `refresh()`, which re-renders this page and arrives as new
-   * props — a copy seeded once would keep showing the list as it was.
+   * The Library as the server has it, already narrowed by `query`. Not copied
+   * into state: a new share or comment ends in `refresh()`, which re-renders
+   * this page and arrives as new props — a copy seeded once would keep showing
+   * the list as it was.
    */
   resources: Resource[];
   members: Member[];
@@ -48,6 +54,9 @@ export function LibraryView({
       };
   }, [members]);
 
+  // Counts within the results, not within the Library: `resources` is already
+  // what the query matched. That is the honest number to put on a chip beside
+  // a search — "Quotes 2" means two of these, and tapping it shows two.
   const counts = useMemo(() => {
     const c: Record<Filter, number> = {
       all: resources.length,
@@ -85,17 +94,22 @@ export function LibraryView({
           meetings.
         </p>
 
-        <div className="my-[18px] flex flex-wrap items-center justify-between gap-3">
+        {/* The filter bar: the search field asks the database, the kind chips
+            narrow what came back. Two different jobs, so two rows. */}
+        <div className="my-[18px] flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <SearchBox query={query} />
+            <Button
+              size="sm"
+              onClick={() => setComposing(true)}
+              className="ml-auto flex-none"
+            >
+              <span aria-hidden="true">+</span>
+              <span className="hidden sm:inline">Share something</span>
+              <span className="sm:hidden">Share</span>
+            </Button>
+          </div>
           <FilterBar active={filter} counts={counts} onPick={setFilter} />
-          <Button
-            size="sm"
-            onClick={() => setComposing(true)}
-            className="flex-none"
-          >
-            <span aria-hidden="true">+</span>
-            <span className="hidden sm:inline">Share something</span>
-            <span className="sm:hidden">Share</span>
-          </Button>
         </div>
 
         {shown.length === 0 ? (
@@ -103,15 +117,32 @@ export function LibraryView({
             <span className="text-accent">
               <RingMark size={44} rings={4} />
             </span>
-            <p className="font-body text-[15px] text-ink-soft">
-              Nothing here yet.{" "}
-              <button
-                onClick={() => setComposing(true)}
-                className="font-medium text-accent"
-              >
-                Share the first one.
-              </button>
-            </p>
+            {/* A search that found nothing is not an empty Library, and saying
+                "share the first one" to someone who mistyped a name would be
+                wrong. Step 7 designs the empty states; this much is here
+                because searching is what makes the second one reachable. */}
+            {query ? (
+              <p className="font-body text-[15px] text-ink-soft">
+                Nothing in the Library matches “{query}”.{" "}
+                <Link
+                  href="/library"
+                  className="font-medium text-accent"
+                  scroll={false}
+                >
+                  Show everything.
+                </Link>
+              </p>
+            ) : (
+              <p className="font-body text-[15px] text-ink-soft">
+                Nothing here yet.{" "}
+                <button
+                  onClick={() => setComposing(true)}
+                  className="font-medium text-accent"
+                >
+                  Share the first one.
+                </button>
+              </p>
+            )}
           </div>
         ) : (
           <div className="columns-1 [column-gap:18px] sm:columns-2 lg:columns-3">

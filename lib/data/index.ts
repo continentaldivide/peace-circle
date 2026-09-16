@@ -8,6 +8,7 @@ import {
   toMessage,
   toResource,
 } from "@/lib/data/rows";
+import { normalizeSearch } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CircleEvent,
@@ -55,11 +56,39 @@ const MESSAGES_PAGE_SIZE = 15;
  * One query: comments come embedded through their foreign key rather than as
  * a request per share. `id` breaks ties so two rows written in the same
  * instant keep a stable order between renders.
+ *
+ * `search` narrows it to the shares matching a member's words, against the
+ * `resources.search` tsvector — a generated column over the title, body, quote,
+ * attribution and book author, indexed by `resources_search_idx`. An empty or
+ * whitespace query is no search at all, not a search for nothing: the whole
+ * Library comes back. `normalizeSearch` is what settles that, in one place, for
+ * the search box and for here.
+ *
+ * `websearch_to_tsquery`, not `plainto_tsquery` or `to_tsquery`. This is a box
+ * a person types into, and the three read that person very differently:
+ * `to_tsquery` demands tsquery syntax and raises a syntax error on a stray
+ * apostrophe or dash, which would turn a typo into a 500; `plainto_tsquery`
+ * never raises but ANDs every word and discards punctuation, so quoting a
+ * phrase or typing "or" does nothing at all. `websearch_to_tsquery` also never
+ * raises, and reads quotes as a phrase, "or" as alternation, and a leading dash
+ * as exclusion — the conventions someone already has from every other search
+ * box. That is why the query is passed through unescaped: it is input to a
+ * parser that is specified to accept anything.
+ *
+ * Results stay newest-first rather than ranked by `ts_rank`. The Library is a
+ * chronological feed and a search narrows it; reordering it by relevance would
+ * make the same share sit in a different place depending on what was typed, and
+ * ranking through PostgREST would need an RPC, putting a read outside this seam.
  */
-export async function getResources(): Promise<Resource[]> {
+export async function getResources(opts?: {
+  /** The member's words, or "" / omitted for the whole Library. */
+  search?: string;
+}): Promise<Resource[]> {
   await requireApproved();
+  const query = normalizeSearch(opts?.search);
+
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let request = supabase
     .from("resources")
     .select(
       "id, author_id, kind, title, body, quote, attribution, url, book_author, created_at, comments (id, author_id, body, created_at)",
@@ -69,6 +98,14 @@ export async function getResources(): Promise<Resource[]> {
     .order("created_at", { referencedTable: "comments", ascending: true })
     .order("id", { referencedTable: "comments", ascending: true });
 
+  if (query) {
+    request = request.textSearch("search", query, {
+      type: "websearch",
+      config: "english",
+    });
+  }
+
+  const { data, error } = await request;
   if (error) throw new Error(`Could not read resources: ${error.message}`);
   return data.map(toResource);
 }
