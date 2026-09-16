@@ -91,7 +91,7 @@ export async function getResources(opts?: {
   let request = supabase
     .from("resources")
     .select(
-      "id, author_id, kind, title, body, quote, attribution, url, book_author, created_at, comments (id, author_id, body, created_at)",
+      "id, author_id, kind, title, body, quote, attribution, url, book_author, image_path, image_width, image_height, created_at, comments (id, author_id, body, created_at)",
     )
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
