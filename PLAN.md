@@ -267,19 +267,22 @@ Still stubbed or missing:
 - **Storage does not exist on the hosted project yet.** The bucket and its
   policies are in a migration, so `db push` creates them there; nothing has been
   pushed. Until it is, a hosted upload has nowhere to go.
-- **Nothing is emailed from the hosted project yet.** The outgoing seam is
-  built (`lib/email.ts`) and `/join` uses it, but without `RESEND_API_KEY` it
-  logs instead of sending, and Supabase Auth still uses its own sender — the
-  dashboard SMTP switch waits on a verified sending domain. Locally this is
-  moot: `supabase start` catches every auth mail in Mailpit.
-- **The hosted project is behind the repo.** The four Step 3 migrations _have_
-  been pushed. The Step 6 one — the image columns, the `images` bucket and its
-  storage policies — has not.
-  The hosted invite email template
-  also needs setting by hand in the dashboard to point at `/auth/confirm` —
-  `config.toml` describes the local stack and is never pushed, so an invite
-  sent from the hosted project would otherwise arrive with a link this app
-  cannot complete.
+- **The hosted project is behind the repo by the two Step 6 migrations** — the
+  image columns, bucket and storage policies, and the constraint that a share
+  may only name a picture from its author's own folder. Everything through Step
+  5 has been pushed.
+- **The app's own email needs `RESEND_API_KEY` wherever it is deployed.**
+  Without it `lib/email.ts` logs instead of sending, so `/join` would not notify
+  anyone. Locally this is moot: `supabase start` catches every auth mail in
+  Mailpit.
+
+Done by hand in the hosted dashboard, reported by the user after Step 6 and not
+re-checked from here: the invite email template points at `/auth/confirm`, the
+auth redirect URLs are set, and Supabase Auth sends through Resend SMTP. The
+first two matter because `config.toml` describes the local stack and is never
+pushed; the third because Supabase's built-in sender throttles to a handful of
+messages an hour.
+
 - **Placeholder pages** — `/about` and `/admin` render `PlaceholderPage`.
 
 ---
